@@ -19,6 +19,11 @@
   - Keep pushing to your branch until the continuous integration system is green.
   - When it is green notify the instructors on Slack that your done.
 
+# Your mission
+
+- You should implement a scikit-learn estimator for the `KNearestNeighbors` class. This corresponds to implementing the methods `fit`, `predict` and `score` of the class in `sklearn_questions.py`.
+- You should implement a scikit-learn cross-validator for the `MonthlySplit` class. This corresponds to implementing the methods `get_n_splits` and `split` of the class in `sklearn_questions.py`.
+
 ## Getting Help
 
 If you need help ask on the Slack of the training.

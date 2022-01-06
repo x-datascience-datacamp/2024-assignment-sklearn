@@ -15,11 +15,6 @@ from sklearn_questions import KNearestNeighbors
 from sklearn_questions import MonthlySplit
 
 
-@pytest.mark.parametrize("k", [1, 3, 5, 7])
-def test_one_nearest_neighbor_check_estimator(k):
-    check_estimator(KNearestNeighbors(n_neighbors=k))
-
-
 def test_one_nearest_neighbor_match_sklearn():
     X, y = make_classification(n_samples=200, n_features=20,
                                random_state=42)
@@ -33,6 +28,11 @@ def test_one_nearest_neighbor_match_sklearn():
     assert_array_equal(y_pred_me, y_pred_sk)
 
     assert onn.score(X_test, y_test) == knn.score(X_test, y_test)
+
+
+@pytest.mark.parametrize("k", [1, 3, 5, 7])
+def test_one_nearest_neighbor_check_estimator(k):
+    check_estimator(KNearestNeighbors(n_neighbors=k))
 
 
 def test_time_split():

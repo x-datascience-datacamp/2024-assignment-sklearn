@@ -14,7 +14,10 @@ the Euclidean distance. The model will be evaluated with the accuracy (average
 number of samples corectly classified). You need to implement the `fit`,
 `predict` and `score` methods for this class. The code you write should pass
 the test we implemented. You can run the tests by calling at the root of the
-repo `pytest test_sklearn_questions.py`.
+repo `pytest test_sklearn_questions.py`. Note that to be fully valid, a
+scikit-learn estimator needs to check that the input given to `fit` and
+`predict` are correct using the `check_*` functions imported in the file.
+Make sure to use them to pass `test_nearest_neighbor_check_estimator`.
 
 Detailed instructions for question 2:
 The data to split should contain the index or one column in

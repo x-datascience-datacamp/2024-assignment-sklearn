@@ -87,12 +87,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         Parameters
         ----------
         X : ndarray, shape (n_test_samples, n_features)
-            Test data to predict on.
+            Data to predict on.
 
         Returns
         ----------
         y : ndarray, shape (n_test_samples,)
-            Class labels for each test data sample.
+            Predicted class labels for each test data sample.
         """
         y_pred = np.zeros(X.shape[0])
         return y_pred
@@ -103,7 +103,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
-            training data.
+            Data to score on.
         y : ndarray, shape (n_samples,)
             target values.
 

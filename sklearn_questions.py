@@ -17,6 +17,8 @@ the test we implemented. You can run the tests by calling at the root of the
 repo `pytest test_sklearn_questions.py`. Note that to be fully valid, a
 scikit-learn estimator needs to check that the input given to `fit` and
 `predict` are correct using the `check_*` functions imported in the file.
+You can find more information on how they should be used in the following
+doc: https://scikit-learn.org/stable/developers/develop.html#rolling-your-own-estimator.
 Make sure to use them to pass `test_nearest_neighbor_check_estimator`.
 
 Detailed instructions for question 2:
@@ -43,7 +45,7 @@ Hints
 from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
-"""
+"""  # noqa: E501
 import numpy as np
 import pandas as pd
 

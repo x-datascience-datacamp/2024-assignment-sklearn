@@ -49,16 +49,11 @@ to compute distances between 2 sets of samples.
 """
 import numpy as np
 import pandas as pd
-
-from sklearn.base import BaseEstimator
-from sklearn.base import ClassifierMixin
-
-from sklearn.model_selection import BaseCrossValidator
-
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
-from sklearn.utils.multiclass import check_classification_targets
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.model_selection import BaseCrossValidator
+from sklearn.utils.multiclass import check_classification_targets
+from sklearn.utils.validation import check_array, check_is_fitted, check_X_y
 
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
@@ -82,6 +77,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        check_classification_targets(y)
+        X, y = check_X_y(check_array(X), y)
+
+        self.X_ = X
+        self.y_ = y
+    
         return self
 
     def predict(self, X):
@@ -98,6 +99,19 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         y_pred = np.zeros(X.shape[0])
+
+        check_is_fitted(self)
+        X = check_array(X)
+
+        distances = pairwise_distances(X, self.X_, metric='sqeuclidean')
+        k_smallest = np.argpartition(distances, self.n_neighbors)[:, :self.n_neighbors]
+        y_pred = np.mean(self.y_[k_smallest], axis=1)
+
+        # Convert to classification labels
+        y_pred[y_pred > 0.5] = 1
+        y_pred[y_pred < 0.5] = 0
+        y_pred[y_pred == 0.5] = np.random.randint(0, 2)
+
         return y_pred
 
     def score(self, X, y):
@@ -115,8 +129,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
-
+        accuracy = np.mean(self.predict(X) == y)
+        return accuracy
 
 class MonthlySplit(BaseCrossValidator):
     """CrossValidator based on monthly split.

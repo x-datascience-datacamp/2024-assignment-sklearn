@@ -137,10 +137,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Accuracy of the model computed for the (X, y) pairs.
         """
         check_is_fitted(self)
-        X = check_array(X)
-        y_pred = self.predict(X)
-        accuracy = np.mean(y_pred == y)
-        return accuracy
+        X, y = check_array(X), np.asarray(y)
+        predictions = self.predict(X)
+        return np.sum(predictions == y) / len(y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -162,6 +161,20 @@ class MonthlySplit(BaseCrossValidator):
     def __init__(self, time_col='index'):  # noqa: D107
         self.time_col = time_col
 
+    def _prepare_data(self, X):
+        """Prepare and validate the data, helper function."""
+        X_copy = X.copy()
+        if self.time_col == 'index':
+            X_copy = X_copy.reset_index()
+        # Validate datetime type
+        if not pd.api.types.is_datetime64_any_dtype(X_copy[self.time_col]):
+            raise ValueError(
+                f"The column '{self.time_col}' is not a datetime."
+                )
+        # Sort by time column
+        X_copy = X_copy.sort_values(by=self.time_col)
+        return X_copy
+
     def get_n_splits(self, X, y=None, groups=None):
         """Return the number of splitting iterations in the cross-validator.
 
@@ -180,18 +193,11 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        data = X.copy()
-        if self.time_col == 'index':
-            data = data.reset_index()
-
-        if not pd.api.types.is_datetime64_any_dtype(data[self.time_col]):
-            raise ValueError(
-                f"The column '{self.time_col}' is not a datetime."
-            )
-
-        data = data.sort_values(self.time_col)
-        months = data[self.time_col].dt.to_period('M').unique()
-        return max(len(months) - 1, 0)
+        X_copy = self._prepare_data(X)
+        # Identify monthly boundaries using .dt.to_period('M')
+        # for better control
+        unique_months = X_copy[self.time_col].dt.to_period('M').unique()
+        return len(unique_months) - 1  # Subtract 1 for training-test split
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.

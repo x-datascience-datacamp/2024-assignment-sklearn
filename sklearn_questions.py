@@ -55,8 +55,7 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -82,9 +81,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        # Validate input data and target
-        X, y = check_X_y(X, y)
-        check_classification_targets(y)
+        # Validate data
+        X, y = self.validate_data(X=X, y=y, accept_sparse=False, multi_output=False)
 
         # Store the training data
         self.X_train_ = X
@@ -93,8 +91,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # Store the number of features for validation in predict
         self.n_features_in_ = X.shape[1]
 
-        # Mark the estimator as fitted
-        self.is_fitted_ = True
         return self
 
     def predict(self, X):
@@ -118,7 +114,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         if X.shape[1] != self.n_features_in_:
             raise ValueError(f"Number of features in input X ({X.shape[1]}) "
                             f"does not match the number of features in training data ({self.n_features_in_}).")
-        
+
         # Validate input data
         X = check_array(X)
 

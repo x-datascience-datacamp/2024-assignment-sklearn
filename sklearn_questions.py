@@ -85,10 +85,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         X, y = check_X_y(X, y)
         check_classification_targets(y)
-        self.classes_ = unique_labels(y)
+
+        self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
-        if len(self.classes_) < 2:
-            raise ValueError("Only one class present in the data.")
+
         self.X_train_ = X
         self.y_train_ = y
 
@@ -107,15 +107,19 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self)
+        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self, ['X_train_', 'y_train_'])
         X = check_array(X)
         y_pred = []
-        for i, x in enumerate(X):
+        for x in X:
             distances = pairwise_distances(x.reshape(1, -1), self.X_train_)
-            idx = np.argsort(distances, axis=1)[0][:self.n_neighbors]
-            values, counts = np.unique(self.y_train_[idx], return_counts=True)
+            nearest_indices = np.argsort(distances,
+                                         axis=1)[0][:self.n_neighbors]
+            values, counts = np.unique(self.y_train_[nearest_indices],
+                                       return_counts=True)
             y_pred.append(values[np.argmax(counts)])
         y_pred = np.array(y_pred)
+
         return y_pred
 
     def score(self, X, y):

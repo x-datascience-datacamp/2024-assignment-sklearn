@@ -84,14 +84,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         X, y = check_X_y(X, y)
         check_classification_targets(y)
-
+        
         self.label_encoder_ = LabelEncoder()
         self.y_ = self.label_encoder_.fit_transform(y)
         self.X_ = X
         self.classes_ = self.label_encoder_.classes_
 
         self.n_features_in_ = X.shape[1]
-
         return self
 
     def predict(self, X):
@@ -109,15 +108,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
 
-        if X.ndim != 2:
-            raise ValueError("X must be a 2D array.")
+        X = check_array(X, ensure_2d=True)
         if X.shape[1] != self.n_features_in_:
             raise ValueError(
                 f"X has {X.shape[1]} features, but this estimator expects "
                 f"{self.n_features_in_} features as input."
             )
-
-        X = check_array(X, ensure_2d=True)
 
         distances = pairwise_distances(X, self.X_)
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
@@ -147,8 +143,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Accuracy of the model computed for the (X, y) pairs.
         """
         y_pred = self.predict(X)
-        accuracy = np.mean(y == y_pred)
-        return accuracy
+        return np.mean(y == y_pred)
 
 
 class MonthlySplit(BaseCrossValidator):

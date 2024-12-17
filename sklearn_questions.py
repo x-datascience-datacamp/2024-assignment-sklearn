@@ -82,12 +82,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         X, y = check_X_y(X, y)
         check_classification_targets(y)
-
+        
         self.label_encoder_ = LabelEncoder()
-        self.y_ = self.label_encoder_.fit_transform(y)  # Labels encodés
+        self.y_ = self.label_encoder_.fit_transform(y)
         self.X_ = X
-        self.classes_ = self.label_encoder_.classes_    # Classes originales
-        self.n_features_in_ = X.shape[1]
+        self.classes_ = self.label_encoder_.classes_
+        self.n_features_in_ = X.shape[1] 
         return self
 
     def predict(self, X):
@@ -104,7 +104,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-        X = check_array(X)
+        X = check_array(X, ensure_2d=True)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(
+                f"X has {X.shape[1]} features, but this estimator is expecting"
+                f"{self.n_features_in_} features as input."
+            )
+
         distances = pairwise_distances(X, self.X_)
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
 

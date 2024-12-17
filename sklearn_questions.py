@@ -110,13 +110,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         check_is_fitted(self, ["X_train_", "y_train_"])
 
         # Validate input data and number of features
-        X = check_array(X)
         if X.shape[1] != self.n_features_in_:
             raise ValueError(f"Number of features in input X ({X.shape[1]}) "
-                            f"does not match the number of features in training data ({self.n_features_in_}).")
-
-        # Validate input data
-        X = check_array(X)
+                             f"does not match the number of features in training data ({self.n_features_in_}).")
 
         # Compute pairwise distances between test samples and training samples
         distances = pairwise_distances(X, self.X_train_)

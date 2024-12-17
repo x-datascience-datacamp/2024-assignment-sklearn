@@ -154,6 +154,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # Validate data
         X, y = validate_data(self,X, y)
 
+        # Validate input data and number of features
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(f"Number of features in input X ({X.shape[1]}) "
+                             f"does not match the number of features in training data ({self.n_features_in_}).")
+
         # Make predictions and compare to true labels
         y_pred = self.predict(X)
         accuracy = np.mean(y_pred == y)
@@ -220,7 +225,7 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-            # Handle case where time_col is the index
+        # Handle case where time_col is the index
         if self.time_col == 'index':
             if isinstance(X, pd.Series):
                 X = X.sort_index()  # Sort Series by index
@@ -247,3 +252,30 @@ class MonthlySplit(BaseCrossValidator):
 
             yield idx_train, idx_test
 
+    def _get_time_series(self, X):
+        """Extract and validate the time column.
+
+        Parameters
+        ----------
+        X : DataFrame
+            DataFrame containing the input data.
+
+        Returns
+        -------
+        time_series : Series
+            Pandas Series containing the datetime values.
+
+        Raises
+        ------
+        ValueError
+            If the specified time column is not in datetime format.
+        """
+        if self.time_col == 'index':
+            time_series = X.index
+        else:
+            time_series = X[self.time_col]
+
+        if not pd.api.types.is_datetime64_any_dtype(time_series):
+            raise ValueError(f"The column '{self.time_col}' must be in datetime format.")
+
+        return pd.Series(time_series)

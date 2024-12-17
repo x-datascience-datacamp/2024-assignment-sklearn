@@ -89,9 +89,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self.y_train_ = np.array(y)
         return self
 
-    def euclideanDistance(x1, x2):
-        return pairwise_distances([x1], [x2], metric='euclidean')[0][0]
-
     def predict(self, X):
         """Predict function.
 
@@ -110,29 +107,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         X = np.array(X)  # X is the test set ( or unseen data)
         y_pred = np.zeros(X.shape[0])
         N = X.shape[0]
-        # for each sample in the X_test
+        # Compute pairwise distances between test samples and training samples
+        distances = pairwise_distances(X, self.X_train)
         for n in range(N):
-            onePointDistances = []
-            # step1: computing the distances from X[n] to each point X_train[i]
+            # Get the indices of the k-nearest neighbors
+            nearest_neighbors = np.argsort(distances[n])[:self.n_neighbors]
+            k_nearest_labels = self.y_train[nearest_neighbors]
 
-            for i in range(self.X_train.shape[0]):
-                dist = self.euclideanDistance(X[n], self.X_train[i])
-                onePointDistances.append((dist, self.y_train[i]))
-
-            # sorting the distances in order to take the nearest one
-
-            onePointDistances.sort(key=lambda x: x[0])
-
-            # taking the k nearest neighbors
-
-            kNearestNeighborsPoint = [
-                label for _, label in onePointDistances[:self.n_neighbors]
-                ]
-
-            # majority voting by counting the occurences among the neighbors
-
-            counts = Counter(kNearestNeighborsPoint).most_common(1)
-            y_pred[n] = counts[0][0]
+            # Majority voting by taking the most common label
+            counts = Counter(k_nearest_labels).most_common(1)
+            y_pred[n] = int(counts[0][0])  # Assign the most common label
 
         return y_pred
 

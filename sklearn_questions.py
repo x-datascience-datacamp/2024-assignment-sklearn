@@ -90,7 +90,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The fitted classifier.
         """
-
         X, y = self._validate_data(X, y, accept_sparse=True,
                                    multi_output=False)
         check_classification_targets(y)

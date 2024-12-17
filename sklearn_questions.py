@@ -83,12 +83,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = check_X_y(X, y)
+        X, y = self._validate_data(X, y, accept_sparse=True, multi_output=False)
         check_classification_targets(y)
-        self.X_ = X
-        self.y_ = y
+        self._X_train = X
+        self._y_train = y
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
+
         return self
 
     def predict(self, X):
@@ -104,13 +105,17 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self, ["X_", "y_"])
-        X = check_array(X)
-        distances = pairwise_distances(X, self.X_)
-        # Get indices of the k nearest neighbors
-        neighbors_idx = np.argsort(distances, axis=1)[:, : self.n_neighbors]
-        neighbors_labels = self.y_[neighbors_idx]
-        return mode(neighbors_labels, axis=1)[0].ravel()
+        check_is_fitted(self, ['_X_train', '_y_train'])
+        X = self._validate_data(X, accept_sparse=True, reset=False)
+        y_pred = np.zeros(X.shape[0], dtype=self._y_train.dtype)
+        distances = pairwise_distances(X, self._X_train, metric='euclidean')
+        nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+        nearest_labels = self._y_train[nearest_indices]
+        for i, labels in enumerate(nearest_labels):
+            unique_labels, counts = np.unique(labels, return_counts=True)
+            y_pred[i] = unique_labels[np.argmax(counts)]
+
+        return y_pred
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -127,7 +132,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return np.mean(self.predict(X) == y)
+        check_is_fitted(self, ['_X_train', '_y_train'])
+        X = self._validate_data(X)
+        y = self._validate_data(y)
+        y_pred = self.predict(X)
+        accuracy = np.mean(y_pred == y)
+        return accuracy
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -147,7 +157,7 @@ class MonthlySplit(BaseCrossValidator):
     """
 
     def __init__(self, time_col='index'):
-        """Initialise l'objet
+        """Initialise l'objet.
 
         Parameters
         ----------
@@ -174,9 +184,24 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        time = self._get_time_column(X)
-        year_month = time.dt.to_period('M')
-        unique_months = np.sort(year_month.unique())
+        if self.time_col == 'index':
+            time_col = pd.Series(X.index, name='time_col').reset_index(
+                drop=True)
+        else:
+            if self.time_col not in X.columns:
+                raise ValueError(
+                    f"{self.time_col} column not found in input data.")
+            time_col = X[self.time_col].reset_index(drop=True)
+
+        # Ensure the time column is datetime
+        if not pd.api.types.is_datetime64_any_dtype(time_col):
+            raise ValueError(
+                f"{self.time_col} must be a datetime column or index.")
+
+        # Convert to datetime and find unique months
+        time_col = pd.to_datetime(time_col)
+        unique_months = time_col.dt.to_period('M').unique()
+
         return len(unique_months) - 1
 
     def split(self, X, y=None, groups=None):
@@ -203,23 +228,45 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             Testing set indices for that split.
         """
-        time = self._get_time_column(X)
-        year_month = time.dt.to_period('M')
-        unique_months = np.sort(year_month.unique())
+         # Extract and validate the time column
+        if self.time_col == 'index':
+            time_col = pd.Series(X.index, name='time_col').reset_index(
+                drop=True)
+        else:
+            if self.time_col not in X.columns:
+                raise ValueError(
+                    f"{self.time_col} column not found in input data.")
+            time_col = X[self.time_col].reset_index(drop=True)
+
+        # Ensure the time column is datetime
+        if not pd.api.types.is_datetime64_any_dtype(time_col):
+            raise ValueError(
+                f"{self.time_col} must be a datetime column or index.")
+
+        # Sort the data
+        if self.time_col == 'index':
+            X_sorted = X.sort_index()
+        else:
+            X_sorted = X.sort_values(by=self.time_col)
+
+        # Convert to periods
+        time_col_sorted = pd.Series(
+            X_sorted.index if self.time_col == 'index'
+            else X_sorted[self.time_col]
+        ).reset_index(drop=True)
+        time_periods = pd.to_datetime(time_col_sorted).dt.to_period('M')
+        unique_months = time_periods.unique()
 
         for i in range(len(unique_months) - 1):
-            train_idx = np.where(year_month == unique_months[i])[0]
-            test_idx = np.where(year_month == unique_months[i + 1])[0]
-            yield (train_idx, test_idx)
+            train_month = unique_months[i]
+            test_month = unique_months[i + 1]
 
-    def _get_time_column(self, X):
-        if self.time_col == 'index':
-            time = pd.Series(X.index)
-        else:
-            time = X[self.time_col]
+            # Masks for train and test
+            train_mask = time_periods == train_month
+            test_mask = time_periods == test_month
 
-        if not pd.api.types.is_datetime64_any_dtype(time):
-            raise ValueError(
-                f"The time column '{self.time_col}' must be of datetime type."
-            )
-        return pd.to_datetime(time)
+            # Retrieve positional indices
+            idx_train = X_sorted.index[train_mask]
+            idx_test = X_sorted.index[test_mask]
+
+            yield X.index.get_indexer(idx_train), X.index.get_indexer(idx_test)

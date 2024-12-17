@@ -83,15 +83,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             The current instance of the classifier
         """
         X, y = check_X_y(X, y)
-        # Ensure that y is valid for classification tasks
         check_classification_targets(y)
         self.classes_ = np.unique(y)
-        self.X_ = X
-        self.y_ = y
-
-        # Set the n_features_in_ attribute
         self.n_features_in_ = X.shape[1]
-
+        self.X_, self.y_ = X, y
         return self
 
     def predict(self, X):
@@ -107,19 +102,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self, ['X_', 'y_'])
+        check_is_fitted(self)
         X = check_array(X)
-        distances = pairwise_distances(X, self.X_)
-
-        # Find indices of the closest neighbors for each test sample
-        closest = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-
-        # Predict labels based on the most frequent class among neighbors
-        y_pred = np.apply_along_axis(
-            lambda x: np.unique(x, return_counts=True)[0][
-                np.argmax(np.unique(x, return_counts=True)[1])], axis=1,
-            arr=self.y_[closest])
-
+        y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
+        for i, x_test in enumerate(X):
+            distances = pairwise_distances(x_test.reshape(1, -1), self.X_)
+            indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+            unique, counts = np.unique(self.y_[indices], return_counts=True)
+            y_pred[i] = unique[np.argmax(counts)]
         return y_pred
 
     def score(self, X, y):

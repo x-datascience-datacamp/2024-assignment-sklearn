@@ -107,7 +107,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         check_is_fitted(self, ['X_', 'y_', 'classes_'])
         X = validate_data(self, X, reset=False)
         if len(self.classes_) == 1:
-            return np.full(X.shape[0], self.classes_[0], dtype = int)
+            return np.full(X.shape[0], self.classes_[0], dtype=int)
         y_pred = []
         for x in X:
             x = x.reshape(1, -1)
@@ -175,8 +175,8 @@ class MonthlySplit(BaseCrossValidator):
                 )
             elif not pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
                 raise ValueError(
-                    f"Expecting datetime data in column '{self.time_col}', but got "
-                    f"{X[self.time_col].dtype}"
+                    f"Expecting datetime data in column '{self.time_col}', "
+                    f"but got{X[self.time_col].dtype}"
                 )
             time_data = pd.to_datetime(X[self.time_col])
 
@@ -187,9 +187,7 @@ class MonthlySplit(BaseCrossValidator):
             raise ValueError(
                 f"Invalid datetime values detected in column '{self.time_col}'."
             )
-
         return time_data
-
 
     def get_n_splits(self, X, y=None, groups=None):
         """Return the number of splitting iterations in the cross-validator."""

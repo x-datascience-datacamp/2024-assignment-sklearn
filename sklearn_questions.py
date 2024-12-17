@@ -182,70 +182,50 @@ class MonthlySplit(BaseCrossValidator):
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
-        """Return the number of splitting iterations in the cross-validator.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
-        y : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-        groups : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-
-        Returns
-        -------
-        n_splits : int
-            The number of splits.
-        """
-        # verify X and y
-        X, y = check_X_y(X, y)
-        # get the first date in X and the last one
-        firstDate = X[self.time_col].min()
-        lastDate = X[self.time_col].max()
-        # get the number of months from the first to the last date
-        # Extract years and months
-        if lastDate >= firstDate:
-            year_diff = lastDate.year - firstDate.year
-            month_diff = lastDate.month - firstDate.month
+        """Return the number of splitting iterations in the cross-validator."""
+        # Check and convert time_col to datetime
+        if self.time_col == 'index':
+            time_data = pd.to_datetime(X.index)
         else:
-            year_diff = 0
-            month_diff = 0
+            if self.time_col not in X.columns:
+                raise ValueError(f"Column '{self.time_col}' not found in X.")
+            time_data = pd.to_datetime(X[self.time_col])
 
-        # Total months difference
-        total_months = year_diff * 12 + month_diff
-        # compute the number of split that we can do
-        splits = (total_months + (total_months - 2)) / 2
-        return splits
+        # Sort data by time
+        time_data = time_data.sort_values()
 
-    def split(self, X, y, groups=None):
-        """Generate indices to split data into training and test set.
+        # Calculate the total number of full months
+        first_date = time_data.min()
+        last_date = time_data.max()
+        diff_month = last_date.month - first_date.month
+        diff_year = last_date.year - first_date.year
+        total_months = diff_year * 12 + diff_month
 
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
-        y : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-        groups : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
+        return max(total_months, 0)
 
-        Yields
-        ------
-        idx_train : ndarray
-            The training set indices for that split.
-        idx_test : ndarray
-            The testing set indices for that split.
-        """
+    def split(self, X, y=None, groups=None):
+        """Generate indices to split data into training and test set."""
+        # Ensure time column is in datetime format
+        if self.time_col == 'index':
+            time_data = pd.to_datetime(X.index)
+        else:
+            if self.time_col not in X.columns:
+                raise ValueError(f"Column '{self.time_col}' not found in X.")
+            time_data = pd.to_datetime(X[self.time_col])
 
-        X_df = pd.DataFrame(X)
-        n_samples = X_df.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+        # Sort data by time
+        sorted_indices = time_data.argsort()
+        X_sorted = X.iloc[sorted_indices]
+        time_sorted = time_data.iloc[sorted_indices]
+
+        # Generate month pairs
+        unique_months = time_sorted.dt.to_period('M').unique()
+
+        for i in range(len(unique_months) - 1):
+            train_mask = time_sorted.dt.to_period('M') == unique_months[i]
+            test_mask = time_sorted.dt.to_period('M') == unique_months[i + 1]
+
+            train_indices = X_sorted.index[train_mask]
+            test_indices = X_sorted.index[test_mask]
+
+            yield train_indices, test_indices

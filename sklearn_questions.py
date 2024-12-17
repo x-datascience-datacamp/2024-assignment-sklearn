@@ -202,10 +202,10 @@ class MonthlySplit(BaseCrossValidator):
                     f"Column {self.time_col} not found")
             time_column = X[self.time_col].reset_index(drop=True)
 
-        if not pd.api.types.is_datetime64_any_dtype(time_column):
-            raise ValueError(
-                f"{self.time_col} must be a datetime column"
-            )
+        # if not pd.api.types.is_datetime64_any_dtype(time_column):
+        #     raise ValueError(
+        #         f"{self.time_col} must be a datetime column"
+        #     )
 
         time_column = pd.to_datetime(time_column)
         unique_periods = time_column.dt.to_period('M').unique()

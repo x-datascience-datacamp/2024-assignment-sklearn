@@ -56,10 +56,12 @@ from sklearn.base import ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import validate_data
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from collections import Counter
+
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     """KNearestNeighbors classifier."""
@@ -82,7 +84,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = check_X_y(X, y)
+        X.reshape(-1,1)
+        X, y = validate_data(X, y)
         check_classification_targets(y)
         self.X_ = X
         self.y_ = y
@@ -104,12 +107,17 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self, ['X_', 'y_', 'classes_'])
-        X = check_array(X)
+        X.reshape(-1,1)
+        X = validate_data(X)
         if len(self.classes_) == 1:
             return np.full(X.shape[0], self.classes_[0], dtype = int)
         y_pred = []
         for x in X:
-            distance = pairwise_distances(x.reshape(1,-1), self.X_).flatten()
+            if x.ndim == 1:  # If x is a 1D array, it has only one feature
+                x = x.reshape(-1, 1)  # Reshape to (n_features, 1) format
+            else:
+                x = x.reshape(1, -1)
+            distance = pairwise_distances(x, self.X_).flatten()
             nearest_index = np.argsort(distance)[:self.n_neighbors]
             nearest_label = self.y_[nearest_index]
             majority_vote = Counter(nearest_label).most_common(1)[0][0]
@@ -132,7 +140,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        X, y = check_X_y(X, y)
+        X.reshape(-1,1)
+        X, y = validate_data(X, y)
         y_pred = self.predict(X)
         return np.mean(y_pred == y)
 

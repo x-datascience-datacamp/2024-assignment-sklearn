@@ -160,8 +160,22 @@ class MonthlySplit(BaseCrossValidator):
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
-        """Return the number of splitting iterations in the cross-validator."""
-        # Extract and validate the time column
+        """Return the number of monthly splits in the data.
+
+        Parameters
+        ----------
+        X : DataFrame
+            Input data, where rows represent samples.
+        y : array-like, optional
+            Ignored. Included for compatibility with scikit-learn.
+        groups : array-like, optional
+            Ignored. Included for compatibility with scikit-learn.
+
+        Returns
+        -------
+        int
+            Number of splits.
+        """
         if self.time_col == 'index':
             time_col = pd.Series(X.index, name='time_col').reset_index(
                 drop=True)
@@ -183,7 +197,22 @@ class MonthlySplit(BaseCrossValidator):
         return len(unique_months) - 1
 
     def split(self, X, y=None, groups=None):
-        """Generate indices to split data into training and test set."""
+        """Generate indices to split data into training and test sets.
+
+        Parameters
+        ----------
+        X : DataFrame
+            Input data, where rows represent samples.
+        y : array-like, optional
+            Ignored. Included for compatibility with scikit-learn.
+        groups : array-like, optional
+            Ignored. Included for compatibility with scikit-learn.
+
+        Yields
+        ------
+        tuple of (ndarray, ndarray)
+            Train and test indices for each split.
+        """
         # Extract and validate the time column
         if self.time_col == 'index':
             time_col = pd.Series(X.index, name='time_col').reset_index(

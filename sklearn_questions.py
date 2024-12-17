@@ -47,6 +47,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
 """
+
 import numpy as np
 import pandas as pd
 
@@ -82,6 +83,24 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+
+        # Input validation
+        check_array(X)
+
+        # if len(y.shape) != 1:
+        # raise ValueError("Y matrix is not 1D")
+
+        # Check that X and y have correct shape
+        X, y = check_X_y(X, y)
+
+        check_classification_targets(y)
+
+        # Fitted attributes
+        self.X_ = X
+        self.y_ = y
+        self.classes_ = sorted(list(set(y)))
+        self.n_features_in_ = X.shape[1]
+
         return self
 
     def predict(self, X):
@@ -97,7 +116,30 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        # Check if the estimator has been already fitted
+        check_is_fitted(self)
+
+        # Input validation
+        X = check_array(X)
+
+        # Distance matrix
+        distances_array = pairwise_distances(X, self.X_, metric="euclidean")
+
+        # Prediction Vector
+        y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
+
+        # Iterate over the distance matrix for each obs
+        for index_vector, distances_vector in enumerate(distances_array):
+
+            # Save the k-nearest points index
+            nearests = np.argsort(distances_vector)[: self.n_neighbors]
+
+            # Get classes from min values
+            classes = self.y_[nearests]
+
+            # Save prediction for obs
+            y_pred[index_vector] = max(set(classes), key=list(classes).count)
+
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +157,15 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+
+        correct_pred = 0
+        obs = y.shape[0]
+
+        for pred_index in range(obs):
+            if y_pred[pred_index] == y[pred_index]:
+                correct_pred += 1
+        return correct_pred / obs
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -134,7 +184,7 @@ class MonthlySplit(BaseCrossValidator):
         To use the index as column just set `time_col` to `'index'`.
     """
 
-    def __init__(self, time_col='index'):  # noqa: D107
+    def __init__(self, time_col="index"):  # noqa: D107
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
@@ -155,7 +205,23 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if self.time_col == "index":
+            most_old_period = pd.Period(X.index.values.min(), freq="M")
+            most_recent_period = pd.Period(X.index.values.max(), freq="M")
+            month_delta = (most_recent_period - most_old_period).n
+        else:
+            if pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
+                most_old_period = pd.Period(X[self.time_col].min(), freq="M")
+                most_recent_period = pd.Period(
+                    X[self.time_col].max(), freq="M"
+                )
+                month_delta = (most_recent_period - most_old_period).n
+            else:
+                raise ValueError(
+                    "The column provided is not of datetime64[ns] format"
+                )
+        n_splits = month_delta
+        return n_splits
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +243,25 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
+        if self.time_col == "index":
+            start_date = pd.Period(X.index.values.min(), freq="M")
+            time_data = X.index.values
+        else:
+            if pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
+                start_date = pd.Period(X[self.time_col].min(), freq="M")
+                time_data = X[self.time_col]
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+            train_start = start_date + i
+            train_end = train_start + 1
+            test_start = train_end
+            test_end = test_start + 1
+            idx_train = np.where(
+                (time_data >= train_start.start_time)
+                & (time_data < train_end.start_time)
+            )[0]
+            idx_test = np.where(
+                (time_data >= test_start.start_time)
+                & (time_data < test_end.start_time)
+            )[0]
+            yield (idx_train, idx_test)

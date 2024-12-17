@@ -89,36 +89,62 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         return self
 
     def predict(self, X):
-        """Predict function.
+            """Predict function.
 
-        Parameters
-        ----------
-        X : ndarray, shape (n_test_samples, n_features)
-            Data to predict on.
+            Parameters
+            ----------
+            X : ndarray, shape (n_test_samples, n_features)
+                Data to predict on.
 
-        Returns
-        ----------
-        y : ndarray, shape (n_test_samples,)
-            Predicted class labels for each test data sample.
-        """
-        check_is_fitted(self, ['X_train_', 'y_train_'])
-        X = check_array(X)
-        predictions = []
+            Returns
+            ----------
+            y : ndarray, shape (n_test_samples,)
+                Predicted class labels for each test data sample.
+            """
+            check_is_fitted(self, ['X_train_', 'y_train_'])
+            X = check_array(X)
+            y_pred = []
+            for x in X:
+                distances = pairwise_distances(x.reshape(1, -1), self.X_train_)
+                nearest_indices = np.argsort(distances,
+                                            axis=1)[0][:self.n_neighbors]
+                values, counts = np.unique(self.y_train_[nearest_indices],
+                                        return_counts=True)
+                y_pred.append(values[np.argmax(counts)])
+            y_pred = np.array(y_pred)
 
-        for sample in X:
-            distances = pairwise_distances(sample[None, :], self.X_train_)
-            nearest_indices = (
-                np.argpartition(distances.ravel(), self.n_neighbors)
-                [:self.n_neighbors]
-            )
-            nearest_labels = self.y_train_[nearest_indices]
-            most_frequent_label = (
-                max(set(nearest_labels),
-                    key=list(nearest_labels).count)
-            )
-            predictions.append(most_frequent_label)
+            return y_pred
+    # def predict(self, X):
+    #     """Predict function.
 
-        return np.array(predictions)
+    #     Parameters
+    #     ----------
+    #     X : ndarray, shape (n_test_samples, n_features)
+    #         Data to predict on.
+
+    #     Returns
+    #     ----------
+    #     y : ndarray, shape (n_test_samples,)
+    #         Predicted class labels for each test data sample.
+    #     """
+    #     check_is_fitted(self, ['X_train_', 'y_train_'])
+    #     X = check_array(X)
+    #     predictions = []
+
+    #     for sample in X:
+    #         distances = pairwise_distances(sample[None, :], self.X_train_)
+    #         nearest_indices = (
+    #             np.argpartition(distances.ravel(), self.n_neighbors)
+    #             [:self.n_neighbors]
+    #         )
+    #         nearest_labels = self.y_train_[nearest_indices]
+    #         most_frequent_label = (
+    #             max(set(nearest_labels),
+    #                 key=list(nearest_labels).count)
+    #         )
+    #         predictions.append(most_frequent_label)
+
+    #     return np.array(predictions)
 
     def score(self, X, y):
         """Calculate the score of the prediction.

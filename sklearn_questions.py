@@ -55,9 +55,8 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.validation import validate_data
-from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from collections import Counter
@@ -85,8 +84,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             The current instance of the classifier
         """
         check_classification_targets(y)
-        #X, y = check_X_y(X, y)
-        #X, y = validate_data(self, X, y)
         X, y = validate_data(self, X, y, reset=False)
         self.X_ = X
         self.y_ = y
@@ -164,18 +161,20 @@ class MonthlySplit(BaseCrossValidator):
 
     def _get_time_data(self, X):
         """Extract and validate the time column or index."""
-        if self.time_col == 'index':  # If time_col is 'index', use the index
+        if self.time_col == 'index':
             if not isinstance(X.index, pd.DatetimeIndex):
-                raise TypeError(f"Index of X must be a pandas DatetimeIndex, but got {type(X.index).__name__}")
+                raise TypeError(f"Index of X must be a pandas DatetimeIndex,
+                                 but got {type(X.index).__name__}")
             time_data = X.index
-        else:  # If time_col is a column, use that column
+        else:
             if self.time_col not in X.columns:
-                raise ValueError(f"The specified time column '{self.time_col}' is not in X.")
+                raise ValueError(f"The specified time column '
+                                {self.time_col}' is not in X.")
             elif not pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
-                raise ValueError(f"Expecting datetime data in column '{self.time_col}', but got {X[self.time_col].dtype}")
-            time_data = pd.to_datetime(X[self.time_col])  # Convert column to datetime if necessary
+                raise ValueError(f"Expecting datetime data in column '{self.time_col}',
+                                but got {X[self.time_col].dtype}")
+            time_data = pd.to_datetime(X[self.time_col])  
 
-        # Ensure the time data is a DatetimeIndex (for consistency with your code)
         if not isinstance(time_data, pd.DatetimeIndex):
             time_data = pd.DatetimeIndex(time_data)
 
@@ -187,19 +186,19 @@ class MonthlySplit(BaseCrossValidator):
     def get_n_splits(self, X, y=None, groups=None):
         """Return the number of splitting iterations in the cross-validator."""
         time_data = self._get_time_data(X)
-        months = time_data.to_period('M').unique()  # Extract unique months as periods
-        return len(months) - 1  # The number of splits is the number of months minus one
+        months = time_data.to_period('M').unique()
+        return len(months) - 1
 
     def split(self, X, y=None, groups=None):
         """Generate indices to split data into training and test set."""
         time_data = self._get_time_data(X)
-        months = time_data.to_period('M').unique()  # Extract unique months as periods
-        months = sorted(months)  # Ensure chronological order
+        months = time_data.to_period('M').unique()s
+        months = sorted(months)
         n_splits = self.get_n_splits(X)
 
         for i in range(n_splits):
-            train_mask = time_data.to_period('M').isin([months[i]])  # Mask for training data
-            test_mask = time_data.to_period('M').isin([months[i + 1]])  # Mask for testing data
-            idx_train = np.where(train_mask)[0]  # Get indices for training data
-            idx_test = np.where(test_mask)[0]  # Get indices for testing data
-            yield idx_train, idx_test  # Yield the split indices
+            train_mask = time_data.to_period('M').isin([months[i]])
+            test_mask = time_data.to_period('M').isin([months[i + 1]])
+            idx_train = np.where(train_mask)[0]
+            idx_test = np.where(test_mask)[0]
+            yield idx_train, idx_test

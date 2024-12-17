@@ -55,7 +55,7 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
@@ -83,8 +83,14 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             The current instance of the classifier
         """
         check_classification_targets(y)
-        X, y = validate_data(self, X, y, accept_sparse=True,
-                            multi_output=False)
+        X, y = validate_data(
+            self,
+            X,
+            y,
+            accept_sparse=True,
+            ensure_2d=True,
+            multi_output=False
+        )
         self.classes_ = np.unique(y)
 
         self.X_train_ = X
@@ -106,17 +112,21 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         """
         check_is_fitted(self)
         X = validate_data(self, X, accept_sparse=True, reset=False)
-        
         n_test = X.shape[0]
         y_pred = np.zeros(n_test, dtype=self.y_train_.dtype)
         dists = pairwise_distances(X, self.X_train_, metric='euclidean')
         nearest_indices = np.argsort(dists, axis=1)[:, :self.n_neighbors]
         nearest_labels = self.y_train_[nearest_indices]
 
-        for i in range(n_test):
-            unique_labels, counts = np.unique(nearest_labels, return_counts=True)
-            most_common_label = unique_labels[np.argmax(counts)]
-            y_pred[i] = most_common_label
+        for i, dist in enumerate(dists):
+            closest_indices = np.argsort(dist)[:self.n_neighbors]
+            closest_labels = self.y_train_[closest_indices]
+            unique_labels, counts = np.unique(
+                nearest_labels,
+                return_counts=True
+            )
+            unique_labels, counts = np.unique(closest_labels, return_counts=True)
+            y_pred[i] = unique_labels[np.argmax(counts)]
 
         return y_pred
 
@@ -190,11 +200,9 @@ class MonthlySplit(BaseCrossValidator):
         if not pd.api.types.is_datetime64_any_dtype(time_col):
             raise ValueError(
                 f"{self.time_col} must be a datetime column or index.")
-    
         time_col = pd.to_datetime(time_col)
         unique_months = time_col.dt.to_period('M').unique()
-        return len(unique_months) - 1 
-
+        return len(unique_months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.

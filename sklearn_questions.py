@@ -52,15 +52,13 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
+from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import BaseCrossValidator
-
 from sklearn.utils.validation import check_X_y, check_is_fitted
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from pandas.api.types import is_datetime64_any_dtype
-
-from scipy import stats
 
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
@@ -72,7 +70,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     def fit(self, X, y):
         """Fitting function.
 
-        Parameters
+         Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
             Data to train the model.
@@ -86,10 +84,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         X, y = check_X_y(X, y)
         check_classification_targets(y)
+
+        self.label_encoder_ = LabelEncoder()
+        self.y_ = self.label_encoder_.fit_transform(y)
         self.X_ = X
-        self.y_ = y
-        self.classes_ = np.unique(self.y_)
-        self.n_features_in_ = self.X_.shape[1]
+        self.classes_ = self.label_encoder_.classes_
+
+        self.n_features_in_ = X.shape[1]
         return self
 
     def predict(self, X):
@@ -106,12 +107,25 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-        X = check_array(X)
-        distance = pairwise_distances(X, self.X_)
-        index = np.argpartition(distance, self.n_neighbors, axis=1)
-        labels = self.y_[index[:, :self.n_neighbors]]
-        y_pred = stats.mode(labels, axis=1, keepdims=False)[0].squeeze()
-        return y_pred
+
+        X = check_array(X, ensure_2d=True)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(
+                f"X has {X.shape[1]} features, but this estimator expects "
+                f"{self.n_features_in_} features as input."
+            )
+
+        distances = pairwise_distances(X, self.X_)
+        nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+
+        y_pred = []
+        for indices in nearest_indices:
+            nearest_labels = self.y_[indices]
+            majority_label = np.bincount(nearest_labels).argmax()
+            y_pred.append(majority_label)
+
+        y_pred = np.array(y_pred)
+        return self.label_encoder_.inverse_transform(y_pred)
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -128,10 +142,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        check_is_fitted(self)
         y_pred = self.predict(X)
-        accuracy = np.sum(y == y_pred) / y.shape
-        return accuracy
+        return np.mean(y == y_pred)
 
 
 class MonthlySplit(BaseCrossValidator):

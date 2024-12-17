@@ -81,7 +81,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = self._validate_data(X, y)
+        X, y = self._validate_data(X, y, accept_sparse=False,
+                                   ensure_2d=True)
         check_classification_targets(y)
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
@@ -104,7 +105,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self, ['X_', 'y_'])
-        X = self._validate_data(X)
+        X = self._validate_data(X, accept_sparse=False, reset=False)
         y_pred = []
         for x in X:
             distances = pairwise_distances(x.reshape(1, -1), self.X_)
@@ -209,7 +210,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         X_copy = X.reset_index()
         n_splits = self.get_n_splits(X_copy, y, groups)
         X_grouped = (

@@ -56,12 +56,11 @@ from sklearn.base import ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_is_fitted
-from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,8 +81,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = validate_data(self, X, y, accept_sparse=True,
-                             multi_output=False)
+        X, y = self._validate_data(X, y, accept_sparse=True,
+                                   multi_output=False)
         check_classification_targets(y)
         self._X_train = X
         self._y_train = y
@@ -106,7 +105,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self, ['_X_train', '_y_train'])
-        X = validate_data(self, X, accept_sparse=True, reset=False)
+        X = self._validate_data(X, accept_sparse=True, reset=False)
         y_pred = np.zeros(X.shape[0], dtype=self._y_train.dtype)
         distances = pairwise_distances(X, self._X_train, metric='euclidean')
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
@@ -133,8 +132,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Accuracy of the model computed for the (X, y) pairs.
         """
         check_is_fitted(self, ['_X_train', '_y_train'])
-        X = validate_data(X, accept_sparse=True, reset=False)
-        y = validate_data(y, ensure_2d=False, reset=False, reset=False)
+        X = self._validate_data(X, accept_sparse=True, reset=False)
+        y = self._validate_data(y, ensure_2d=False, reset=False)
         y_pred = self.predict(X)
         accuracy = np.mean(y_pred == y)
         return accuracy

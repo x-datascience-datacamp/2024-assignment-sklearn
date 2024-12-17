@@ -82,8 +82,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        # Checks X and y for consistent length, enforces X to be 2D and y 1D.
-        self.X_, self.y_ = check_X_y(X, y)
+        self.X_, self.y_ = check_X_y(X, y) # Checks X and y for consistent length, enforces X to be 2D and y 1D.
 
         return self
 
@@ -100,13 +99,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        # Check if fit has been called
-        check_is_fitted(self)
+        check_is_fitted(self) # Check if fit has been called
 
-        # Input validation
-        X = check_array(X)
+        X = check_array(X) # Input validation
 
-        distances = pairwise_distances(X[i], self.X_, metric='euclidean')
+        distances = pairwise_distances(X, self.X_, metric='euclidean')
 
         y_pred = np.zeros(X.shape[0])
         for i in range(X.shape[0]):
@@ -130,11 +127,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        # Check if fit has been called
-        check_is_fitted(self)
+        check_is_fitted(self) # Check if fit has been called
 
-        # Input validation
-        X, y = check_X_y(X, y)
+        X, y = check_X_y(X, y) # Input validation
 
         y_pred = self.predict(X)
 

@@ -82,7 +82,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         X, y = check_X_y(X, y)
         check_classification_targets(y)
-        
+
         self.label_encoder_ = LabelEncoder()
         self.y_ = self.label_encoder_.fit_transform(y)
         self.X_ = X
@@ -105,9 +105,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
         X = check_array(X, ensure_2d=True)
-        if X.shape[1] != self.n_features_in_:
+
+        if X.shape[1] != getattr(self, "n_features_in_", X.shape[1]):
             raise ValueError(
-                f"X has {X.shape[1]} features, but this estimator is expecting"
+                f"X has {X.shape[1]} features, but this estimator expects "
                 f"{self.n_features_in_} features as input."
             )
 

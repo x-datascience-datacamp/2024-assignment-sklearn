@@ -93,7 +93,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         return self
 
     def euclidian_distance(self, x1, x2, axis=1):
-        """Computes euclidian distance for one example
+        """Compute euclidian distance for one example.
 
         Parameters
         ----------
@@ -107,8 +107,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         return np.sqrt(np.sum((x1 - x2)**2, axis=axis))
 
     def compute_distance(self, x):
-        """Computes euclidian distance for one example
-        with respect to all known samples.
+        """Compute all euclidian distances for one example.
 
         Parameters
         ----------

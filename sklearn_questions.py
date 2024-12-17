@@ -147,6 +147,13 @@ class MonthlySplit(BaseCrossValidator):
     """
 
     def __init__(self, time_col='index'):
+        """Initialise l'objet
+
+        Parameters
+        ----------
+        time_col : string
+            Pour le nom de la colonne de temps.
+        """
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):

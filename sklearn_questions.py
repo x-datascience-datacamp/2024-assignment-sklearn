@@ -55,8 +55,7 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_X_y, check_is_fitted, check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -88,7 +87,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
 
-        self.X_train_, self.y_train_ = X, y
+        self.X_ = X
+        self.y_ = y
         return self
 
     def predict(self, X):
@@ -104,14 +104,15 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self, ['X_train_', 'y_train_'])
+        check_is_fitted(self, ["X_", "y_"])
         X = check_array(X)
+
         y_pred = []
         for x in X:
-            distances = pairwise_distances(x.reshape(1, -1), self.X_train_)
+            distances = pairwise_distances(x.reshape(1, -1), self.X_)
             nearest_indices = np.argsort(distances,
                                          axis=1)[0][:self.n_neighbors]
-            values, counts = np.unique(self.y_train_[nearest_indices],
+            values, counts = np.unique(self.y_[nearest_indices],
                                        return_counts=True)
             y_pred.append(values[np.argmax(counts)])
         y_pred = np.array(y_pred)

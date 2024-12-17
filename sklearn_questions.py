@@ -240,7 +240,8 @@ class MonthlySplit(BaseCrossValidator):
             The testing set indices for that split.
         """
 
-        n_samples = X.shape[0]
+        X_df = pd.DataFrame(X)
+        n_samples = X_df.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
         for i in range(n_splits):
             idx_train = range(n_samples)

@@ -104,7 +104,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted labels.
         """
         check_is_fitted(self)
-        X = check_array(X, accept_sparse=True)
+        X = self._validate_data(X, accept_sparse=True)
         y_pred = np.zeros(X.shape[0], dtype=self._y_train.dtype)
         dist = pairwise_distances(X, self._X_train, metric='euclidean')
         idx = np.argsort(dist, axis=1)[:, :self.n_neighbors]

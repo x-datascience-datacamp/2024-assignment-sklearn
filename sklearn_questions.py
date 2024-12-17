@@ -182,8 +182,7 @@ class MonthlySplit(BaseCrossValidator):
             # Ensure the specified time column exists in the data
             if self.time_col not in X.columns:
                 raise ValueError(
-                    f"The specified column '{
-                        self.time_col}' is not present in the input data."
+                    f"{self.time_col} column not found in input data."
                 )
             # Extract the specified time column and reset its index
             time_col = X[self.time_col].reset_index(drop=True)

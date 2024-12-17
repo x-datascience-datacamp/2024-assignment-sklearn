@@ -82,6 +82,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        # Validate input data and target
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+
+        # Store the training data
+        self.X_train_ = X
+        self.y_train_ = y
+
+        # Mark the estimator as fitted
+        self.is_fitted_ = True
         return self
 
     def predict(self, X):
@@ -97,7 +107,20 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        # Check if the model is fitted
+        check_is_fitted(self, ["X_train_", "y_train_"])
+
+        # Validate input data
+        X = check_array(X)
+
+        # Compute pairwise distances between test samples and training samples
+        distances = pairwise_distances(X, self.X_train_)
+
+        # Find the index of the nearest neighbors
+        nearest_indices = np.argmin(distances, axis=1)
+
+        # Predict the label of the nearest training sample
+        y_pred = self.y_train_[nearest_indices]
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +138,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        # Check if the model is fitted
+        check_is_fitted(self, ["X_train_", "y_train_"])
+
+        # Validate input data and target
+        X, y = check_X_y(X, y)
+
+        # Make predictions and compare to true labels
+        y_pred = self.predict(X)
+        accuracy = np.mean(y_pred == y)
+        return accuracy
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,20 +187,21 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        time_series = self._get_time_series(X)
+        unique_months = time_series.dt.to_period('M').unique()
+        return len(unique_months) - 1  # One split per pair of consecutive months
 
-    def split(self, X, y, groups=None):
+    def split(self, X, y=None, groups=None):
         """Generate indices to split data into training and test set.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
-        y : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-        groups : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
+        X : DataFrame
+            DataFrame containing the input data.
+        y : Ignored
+            Not used, present for compatibility.
+        groups : Ignored
+            Not used, present for compatibility.
 
         Yields
         ------
@@ -177,12 +210,50 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        time_series = self._get_time_series(X)
 
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+        # Convert time column to monthly periods
+        X['month_period'] = time_series.dt.to_period('M')
+
+        # Sort data by time
+        X = X.sort_values(by=self.time_col)
+
+        unique_months = X['month_period'].unique()
+
+        for i in range(len(unique_months) - 1):
+            train_month = unique_months[i]
+            test_month = unique_months[i + 1]
+
+            # Find indices for training and test data
+            idx_train = X[X['month_period'] == train_month].index
+            idx_test = X[X['month_period'] == test_month].index
+
+            yield np.array(idx_train), np.array(idx_test)
+
+    def _get_time_series(self, X):
+        """Extract and validate the time column.
+
+        Parameters
+        ----------
+        X : DataFrame
+            DataFrame containing the input data.
+
+        Returns
+        -------
+        time_series : Series
+            Pandas Series containing the datetime values.
+
+        Raises
+        ------
+        ValueError
+            If the specified time column is not in datetime format.
+        """
+        if self.time_col == 'index':
+            time_series = X.index
+        else:
+            time_series = X[self.time_col]
+
+        if not pd.api.types.is_datetime64_any_dtype(time_series):
+            raise ValueError(f"The column '{self.time_col}' must be in datetime format.")
+
+        return pd.Series(time_series)

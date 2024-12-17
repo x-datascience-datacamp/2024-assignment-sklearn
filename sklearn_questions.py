@@ -225,7 +225,7 @@ class MonthlySplit(BaseCrossValidator):
         n_splits = self.get_n_splits(X_copy, y, groups)
         X_grouped = (
             X_copy.sort_values(by=self.time_col)
-            .groupby(pd.Grouper(key=self.time_col, freq="ME"))
+            .groupby(pd.Grouper(key=self.time_col, freq="M"))
         )
         idxs = [group.index for _, group in X_grouped]
         for i in range(n_splits):

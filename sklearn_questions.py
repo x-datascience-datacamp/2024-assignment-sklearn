@@ -56,13 +56,14 @@ from sklearn.base import ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import validate_data
+
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from collections import Counter
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -84,11 +85,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             The current instance of the classifier
         """
         X, y = check_X_y(X, y)
+        X, y = validate_data(self, X, y, reset=True)
+
         check_classification_targets(y)
 
         self.X_ = X
         self.y_ = y
         self.n_features_in_ = X.shape[1]
+
         self.classes_ = np.unique(y)
 
         return self
@@ -107,7 +111,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self, ["X_", "y_"])
-        X = check_array(X)
+        X = validate_data(self, X, reset=False)
 
         if X.shape[1] != self.n_features_in_:
             raise ValueError(f"n_features not match: {self.n_features_in_}")
@@ -156,6 +160,7 @@ class MonthlySplit(BaseCrossValidator):
         for which this column is not a datetime, it will raise a ValueError.
         To use the index as column just set `time_col` to `'index'`.
     """
+
     def __init__(self, time_col='index'):  # noqa: D107
         self.time_col = time_col
 

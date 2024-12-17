@@ -181,19 +181,13 @@ class MonthlySplit(BaseCrossValidator):
         else:
             # Ensure the specified time column exists in the data
             if self.time_col not in X.columns:
-                raise ValueError(
-                    f"{self.time_col} column not found in input data."
-                )
+                raise ValueError(f" column '{self.time_col}' not exist")
             # Extract the specified time column and reset its index
             time_col = X[self.time_col].reset_index(drop=True)
 
         # Verify that the time column contains datetime values
         if not pd.api.types.is_datetime64_any_dtype(time_col):
-            raise ValueError(
-                f"The column '{
-                    self.time_col
-                    }' must be of datetime type or a datetime index."
-            )
+            raise ValueError(f"column '{self.time_col}' must be datetime.")
 
         # Convert the time column to datetime format and identify unique months
         time_col = pd.to_datetime(time_col)
@@ -230,18 +224,14 @@ class MonthlySplit(BaseCrossValidator):
             # Check if the specified time column exists in the dataset
             if self.time_col not in X.columns:
                 raise ValueError(
-                    f"The specified column '{
-                        self.time_col}' does not exist in the input data."
+                    f"column '{self.time_col}' does not exist"
                 )
             # Extract the time column and reset its index
             time_col = X[self.time_col].reset_index(drop=True)
 
         # Verify that the time column is in a datetime-compatible format
         if not pd.api.types.is_datetime64_any_dtype(time_col):
-            raise ValueError(
-                f"The column '{
-                    self.time_col}' or index must be of datetime type."
-            )
+            raise ValueError(f"column '{self.time_col}' must be datetime")
 
         # Sort the dataset based on the time column
         if self.time_col == 'index':
@@ -254,8 +244,7 @@ class MonthlySplit(BaseCrossValidator):
             pd.Series(X_sorted.index) if self.time_col == 'index'
             else X_sorted[self.time_col]
         ).reset_index(drop=True)
-        time_periods = pd.to_datetime(
-            time_col_sorted).dt.to_period('M')
+        time_periods = pd.to_datetime(time_col_sorted).dt.to_period('M')
         unique_months = time_periods.unique()
 
         # Generate train-test splits for consecutive months
@@ -271,5 +260,7 @@ class MonthlySplit(BaseCrossValidator):
             train_indices = X_sorted.index[train_mask]
             test_indices = X_sorted.index[test_mask]
 
-            yield X.index.get_indexer(
-                train_indices), X.index.get_indexer(test_indices)
+            yield (
+                X.index.get_indexer(train_indices),
+                X.index.get_indexer(test_indices)
+            )

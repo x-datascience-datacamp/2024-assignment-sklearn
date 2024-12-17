@@ -127,9 +127,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        check_classification_targets(y)
-        y_pred = self.predict(X)
-        return np.mean(y == y_pred)
+        check_is_fitted(self)
+        X, y = check_X_y(X, y)
+        return np.mean(self.predict(X) == y)
 
 
 class MonthlySplit(BaseCrossValidator):

@@ -81,7 +81,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         ----------
         self : instance of KNearestNeighbors
             The current instance of the classifier
-        """
+        """ 
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+        self.X_ = X
+        self.y_ = y
+
         return self
 
     def predict(self, X):
@@ -97,8 +102,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
+        check_is_fitted(self)
+        X = check_array(X)
+        closest = np.argmin(pairwise_distances(X, self.X_), axis=1)
+
+        return self.y_[closest]
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -115,7 +123,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +164,10 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        date_min= X[self.time_col].min()
+        date_max= X[self.time_col].max()
+        return (date_max.year - date_min.year) * 12 + date_max.month - date_min.month
+
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -181,8 +193,16 @@ class MonthlySplit(BaseCrossValidator):
         n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+            date_debut_train = X[self.time_col].min() + pd.DateOffset(months=i)
+            date_fin_train = date_debut_train + pd.DateOffset(months=1) - pd.DateOffset(days=1)
+            date_debut_test = date_fin_train + pd.DateOffset(days=1)
+            date_fin_test = date_debut_test + pd.DateOffset(months=1) - pd.DateOffset(days=1)
+            print(X)
+            #get positions of X[(X[self.time_col] >= date_debut_train) & (X[self.time_col] <= date_fin_train)] in the X array
+            idx_train = np.argwhere((X[self.time_col] >= date_debut_train) & (X[self.time_col] <= date_fin_train)==True).flatten()
+            idx_test =  np.argwhere((X[self.time_col] >= date_debut_test) & (X[self.time_col] <= date_fin_test)==True).flatten()
+
+            print(idx_train)
+            print(X[(X[self.time_col] >= date_debut_train) & (X[self.time_col] <= date_fin_train)][self.time_col])
+            yield idx_train, idx_test    
+

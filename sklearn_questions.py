@@ -107,6 +107,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         check_is_fitted(self, ["X_", "y_"])
         X = check_array(X)
 
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(
+                f"X has {X.shape[1]} features, but {self.__class__.__name__} "
+                f"is expecting {self.n_features_in_} features as input"
+            )
+
         y_pred = []
         for x in X:
             distances = pairwise_distances(x.reshape(1, -1), self.X_)

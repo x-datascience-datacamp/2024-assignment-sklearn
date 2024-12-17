@@ -110,6 +110,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         X = check_array(X, accept_sparse=True)
         check_is_fitted(self, ['X_train_', 'y_train_'])
 
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(
+                f"X has {X.shape[1]} features, "
+                f"but the model was trained with "
+                f"{self.n_features_in_} features."
+            )
         distances = pairwise_distances(X, self.X_train_, metric='euclidean')
 
         nearest_neighbors = np.argsort(distances, axis=1)[:, :self.n_neighbors]

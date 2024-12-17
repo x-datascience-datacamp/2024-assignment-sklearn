@@ -63,7 +63,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 from collections import Counter
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -84,12 +84,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        if X.ndim == 1:
-            X = X.reshape(1,-1)
-        else:
-            X = X.reshape(-1,1)
-        X, y = validate_data(X, y)
         check_classification_targets(y)
+        #X, y = check_X_y(X, y)
+        #X, y = validate_data(self, X, y)
+        X, y = validate_data(self, X, y, reset=False)
         self.X_ = X
         self.y_ = y
         self.classes_ = np.unique(y)
@@ -110,11 +108,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self, ['X_', 'y_', 'classes_'])
-        if X.ndim == 1:
-            X = X.reshape(1,-1)
-        else:
-            X = X.reshape(-1,1)
-        X = validate_data(X)
+        X = validate_data(self, X, reset=False)
         if len(self.classes_) == 1:
             return np.full(X.shape[0], self.classes_[0], dtype = int)
         y_pred = []
@@ -143,11 +137,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        if X.ndim == 1:
-            X = X.reshape(1,-1)
-        else:
-            X = X.reshape(-1,1)
-        X, y = validate_data(X, y)
+        check_classification_targets(y)
+        X, y = validate_data(self, X, y, reset=False)
         y_pred = self.predict(X)
         return np.mean(y_pred == y)
 

@@ -54,7 +54,7 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import BaseCrossValidator
-from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import check_is_fitted, validate_data
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
@@ -82,15 +82,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = check_X_y(X, y)
+        X, y = validate_data(self, X, y, ensure_2d=True, y_numeric=False)
         check_classification_targets(y)
-        
+
         self.label_encoder_ = LabelEncoder()
         self.y_ = self.label_encoder_.fit_transform(y)
         self.X_ = X
         self.classes_ = self.label_encoder_.classes_
 
-        self.n_features_in_ = X.shape[1]
         return self
 
     def predict(self, X):
@@ -107,13 +106,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-
-        X = check_array(X, ensure_2d=True)
-        if X.shape[1] != self.n_features_in_:
-            raise ValueError(
-                f"X has {X.shape[1]} features, but this estimator expects "
-                f"{self.n_features_in_} features as input."
-            )
+        X = validate_data(self, X, ensure_2d=True, reset=False)  # reset=False pour vérifier `n_features_in_`
 
         distances = pairwise_distances(X, self.X_)
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]

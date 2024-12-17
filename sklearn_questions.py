@@ -106,6 +106,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self, ['_X_train', '_y_train'])
         X = check_array(X, accept_sparse=True)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(
+                f"Number of features in `X` ({X.shape[1]}) does not match "
+                f"number of features seen during `fit` ({self.n_features_in_})"
+            )
         y_pred = np.zeros(X.shape[0], dtype=self._y_train.dtype)
         distances = pairwise_distances(X, self._X_train, metric='euclidean')
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]

@@ -199,7 +199,25 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        # verify X and y
+        X, y = check_X_y(X, y)
+        # get the first date in X and the last one
+        firstDate = X[self.time_col].min()
+        lastDate = X[self.time_col].max()
+        # get the number of months from the first to the last date
+        # Extract years and months
+        if lastDate >= firstDate:
+            year_diff = lastDate.year - firstDate.year
+            month_diff = lastDate.month - firstDate.month
+        else:
+            year_diff = 0
+            month_diff = 0
+
+        # Total months difference
+        total_months = year_diff * 12 + month_diff
+        # compute the number of split that we can do
+        splits = (total_months + (total_months - 2)) / 2
+        return splits
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.

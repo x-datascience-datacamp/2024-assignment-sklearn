@@ -84,7 +84,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X = X.reshape(-1,1)
+        if X.ndim == 1:
+            X = X.reshape(1,-1)
+        else:
+            X = X.reshape(-1,1)
         X, y = validate_data(X, y)
         check_classification_targets(y)
         self.X_ = X
@@ -107,7 +110,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self, ['X_', 'y_', 'classes_'])
-        X = X.reshape(-1,1)
+        if X.ndim == 1:
+            X = X.reshape(1,-1)
+        else:
+            X = X.reshape(-1,1)
         X = validate_data(X)
         if len(self.classes_) == 1:
             return np.full(X.shape[0], self.classes_[0], dtype = int)
@@ -140,7 +146,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        X = X.reshape(-1,1)
+        if X.ndim == 1:
+            X = X.reshape(1,-1)
+        else:
+            X = X.reshape(-1,1)
         X, y = validate_data(X, y)
         y_pred = self.predict(X)
         return np.mean(y_pred == y)

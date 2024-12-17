@@ -108,6 +108,8 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         X = np.array(X)  # X is the test set ( or unseen data)
         y_pred = np.zeros(X.shape[0], dtype=np.int64)
         N = X.shape[0]
+        # Create a mapping of string labels to integers
+        label_map = {label: idx for idx, label in enumerate(np.unique(self.y_train_))}
         # Compute pairwise distances between test samples and training samples
         distances = pairwise_distances(X, self.X_train_)
         for n in range(N):
@@ -117,7 +119,10 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
             # Majority voting by taking the most common label
             counts = Counter(k_nearest_labels).most_common(1)
-            y_pred[n] = counts[0][0]  # Assign the most common label
+            most_common_label = counts[0][0]
+            # Map the label to an integer
+            y_pred[n] = label_map[most_common_label]  # Map string label to numeric label
+            # y_pred[n] = counts[0][0] Assign the most common label
 
         return y_pred
 

@@ -133,8 +133,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Accuracy of the model computed for the (X, y) pairs.
         """
         check_is_fitted(self, ['_X_train', '_y_train'])
-        X = check_array(X, accept_sparse=True)
-        y = check_array(y, ensure_2d=False)
+        X = validate_data(X, accept_sparse=True, reset=False)
+        y = validate_data(y, ensure_2d=False, reset=False, reset=False)
         y_pred = self.predict(X)
         accuracy = np.mean(y_pred == y)
         return accuracy

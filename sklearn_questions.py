@@ -90,9 +90,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         return self
 
     def euclideanDistance(x1, x2):
-        """
-        Compute the euclidean distance between two points
-        """
         return pairwise_distances([x1], [x2], metric='euclidean')[0][0]
 
     def predict(self, X):

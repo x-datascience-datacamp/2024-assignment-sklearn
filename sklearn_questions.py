@@ -60,6 +60,7 @@ from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.metrics import accuracy_score
+from collections import Counter
 
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
@@ -83,15 +84,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        self.X_train = np.array(X)
-        self.y_train = np.array(y)
+        X, y = check_X_y(X, y)
+        self.X_train_ = np.array(X)
+        self.y_train_ = np.array(y)
         return self
 
     def euclideanDistance(x1, x2):
         """
         compute the euclidean distance between two points x1 and x2
         """
-        return np.sqrt(np.sum((x1 - x2) ** 2))
+        return pairwise_distances([x1], [x2], metric='euclidean')[0][0]
 
     def predict(self, X):
         """Predict function.
@@ -106,23 +108,32 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        X = np.array(X) # X is the test set ( or unseen data)
+        check_is_fitted(self, ['X_train', 'y_test'])
+        X = check_array(X)
+        X = np.array(X)  # X is the test set ( or unseen data)
         y_pred = np.zeros(X.shape[0])
         N = X.shape[0]
-        #for each sample in the X_test
+        # for each sample in the X_test
         for n in range(N):
-            onePointDistances=[]
-            #step1: computing the distances from X[n] to each point X_train[i]
+            onePointDistances = []
+            # step1: computing the distances from X[n] to each point X_train[i]
+
             for i in range(self.X_train.shape[0]):
-                onePointDistances.append((euclideanDistance(X[n], self.X_train[i]), self.y_train[i]))
+                dist = self.euclideanDistance(X[n], self.X_train[i])
+                onePointDistances.append((dist, self.y_train[i]))
 
-            #sorting the distances in order to take the nearest one
-            onePointDistances.sort(key=lambda x:x[0])
+            # sorting the distances in order to take the nearest one
 
-            #taking the k nearest neighbors
-            kNearestNeighborsPoint = [label for _, label in onePointDistances[:self.n_neighbors]]
+            onePointDistances.sort(key=lambda x: x[0])
 
-            #majority voting by counting the occurences among the neighbors
+            # taking the k nearest neighbors
+
+            kNearestNeighborsPoint = [
+                label for _, label in onePointDistances[:self.n_neighbors]
+                ]
+
+            # majority voting by counting the occurences among the neighbors
+
             counts = Counter(kNearestNeighborsPoint).most_common(1)
             y_pred[n] = counts[0][0]
 
@@ -143,9 +154,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
+        X = check_array(X)
+        y = check_classification_targets(y)
         score = 0.0
         y_pred = self.predict(X)
-        score =  accuracy_score(y, y_pred)
+        score = accuracy_score(y, y_pred)
         return score
 
 

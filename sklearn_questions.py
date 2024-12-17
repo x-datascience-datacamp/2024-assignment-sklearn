@@ -82,6 +82,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+        self.features_ = X
+        self.classes_, self.targets_ = np.unique(y, return_inverse=True)
+        self.n_features_in_ = X.shape[1]
+        self.is_fitted_ = True
         return self
 
     def predict(self, X):
@@ -97,8 +103,15 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
+        X = check_array(X)
+        y_pred = np.zeros(X.shape[0], dtype=int)
+        check_is_fitted(self)
+        distances = pairwise_distances(X, self.features_)
+        for i in range(X.shape[0]):
+            nearest_indices = np.argsort(distances[i])[:self.n_neighbors]
+            nearest_lbs = self.targets_[nearest_indices]
+            y_pred[i] = np.bincount(nearest_lbs).argmax()
+        return self.classes_[y_pred]
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -115,7 +128,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        check_is_fitted(self)
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -137,6 +154,39 @@ class MonthlySplit(BaseCrossValidator):
     def __init__(self, time_col='index'):  # noqa: D107
         self.time_col = time_col
 
+    def get_n_splits_col(self, X):
+        """Get the time column and unique values of the time column.
+
+        Parameters
+        ----------
+        X : DataFrame
+            Data to split.
+
+        Returns
+        -------
+        time_col : pd.DatetimeIndex
+            The time column of the input data.
+        time_col_unique : pd.PeriodIndex
+            Unique values of the time column.
+        """
+        if self.time_col == 'index':
+            if not isinstance(X.index, pd.DatetimeIndex):
+                raise TypeError(
+                    f"The column '{self.time_col}' is not a datetime."
+                )
+            time_col = X.index
+        else:
+            if not pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
+                raise ValueError(
+                    f"The column '{self.time_col}' is not a datetime."
+                )
+            time_col = pd.to_datetime(X[self.time_col])
+
+        if not isinstance(time_col, pd.DatetimeIndex):
+            time_col = pd.DatetimeIndex(time_col)
+        time_col_unique = time_col.to_period("M").unique()
+        return time_col, time_col_unique
+
     def get_n_splits(self, X, y=None, groups=None):
         """Return the number of splitting iterations in the cross-validator.
 
@@ -155,7 +205,7 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        return len(self.get_n_splits_col(X)[1]) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +227,17 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
+        time_col, time_col_unique = self.get_n_splits_col(X)
+        n_splits = self.get_n_splits(X)
+        time_col_unique = sorted(time_col_unique)
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
+            # Split for the training
+            train_mask = time_col.to_period('M').isin([time_col_unique[i]])
+            idx_train = np.where(train_mask)[0]
+            # Split for the testing
+            test_mask = time_col.to_period('M').isin([time_col_unique[i + 1]])
+            idx_test = np.where(test_mask)[0]
+            # yield the indices
             yield (
-                idx_train, idx_test
-            )
+                    idx_train, idx_test
+                )

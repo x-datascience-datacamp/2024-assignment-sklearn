@@ -214,7 +214,7 @@ class MonthlySplit(BaseCrossValidator):
         """
 
         if self.time_col != 'index':
-            if not isinstance(X[self.time_col][0], type(pd.Timestamp('now'))):
+            if not isinstance(X[self.time_col].iloc[0], type(pd.Timestamp('now'))):
                 raise ValueError('datetime')
         else:
             if not isinstance(X.index[0], type(pd.Timestamp('now'))):
@@ -228,12 +228,12 @@ class MonthlySplit(BaseCrossValidator):
         else:
             x_df = X.copy()
             if 'date' not in x_df.columns[0]:
-                x_df = x_df.rename(columns={self.time_col: 'date'},
-                                   inplace=False)
+                x_df = x_df.rename(columns={self.time_col: 'date'}, inplace=False)
         n_splits = self.get_n_splits(x_df, y, groups)
         x_df['month_year'] = pd.to_datetime(x_df['date']).dt.strftime('%b-%Y')
-        months_years = np.unique(np.sort(pd.to_datetime(x_df['month_year'])))
-        x_df['month_year'] = pd.to_datetime(x_df['month_year'])
+        # Spécifiez le format explicitement pour éviter les avertissements
+        months_years = np.unique(np.sort(pd.to_datetime(x_df['month_year'], format='%b-%Y')))
+        x_df['month_year'] = pd.to_datetime(x_df['month_year'], format='%b-%Y')
         x_df = x_df.reset_index()
         for i in range(n_splits):
             idx_train = list(x_df[x_df['month_year'] == months_years[i]].index)

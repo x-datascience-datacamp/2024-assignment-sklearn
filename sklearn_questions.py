@@ -90,6 +90,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self.X_train_ = X
         self.y_train_ = y
 
+        # Store the number of features for validation in predict
+        self.n_features_in_ = X.shape[1]
+
         # Mark the estimator as fitted
         self.is_fitted_ = True
         return self
@@ -110,6 +113,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # Check if the model is fitted
         check_is_fitted(self, ["X_train_", "y_train_"])
 
+        # Validate input data and number of features
+        X = check_array(X)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(f"Number of features in input X ({X.shape[1]}) "
+                            f"does not match the number of features in training data ({self.n_features_in_}).")
+        
         # Validate input data
         X = check_array(X)
 
@@ -216,50 +225,30 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-        time_series = self._get_time_series(X)
+            # Handle case where time_col is the index
+        if self.time_col == 'index':
+            if isinstance(X, pd.Series):
+                X = X.sort_index()  # Sort Series by index
+            else:
+                X = X.sort_index()  # Sort DataFrame by index
+        else:
+            # Sort DataFrame by time_col
+            X = X.sort_values(by=self.time_col)
 
-        # Convert time column to monthly periods
-        X['month_period'] = time_series.dt.to_period('M')
+        # Extract month periods for splitting
+        if self.time_col == 'index':
+            month_periods = X.index.to_period('M')
+        else:
+            month_periods = pd.to_datetime(X[self.time_col]).dt.to_period('M')
 
-        # Sort data by time
-        X = X.sort_values(by=self.time_col)
-
-        unique_months = X['month_period'].unique()
-
+        # Generate splits for each unique month
+        unique_months = month_periods.unique()
         for i in range(len(unique_months) - 1):
             train_month = unique_months[i]
             test_month = unique_months[i + 1]
 
-            # Find indices for training and test data
-            idx_train = X[X['month_period'] == train_month].index
-            idx_test = X[X['month_period'] == test_month].index
+            idx_train = np.where(month_periods == train_month)[0]
+            idx_test = np.where(month_periods == test_month)[0]
 
-            yield np.array(idx_train), np.array(idx_test)
+            yield idx_train, idx_test
 
-    def _get_time_series(self, X):
-        """Extract and validate the time column.
-
-        Parameters
-        ----------
-        X : DataFrame
-            DataFrame containing the input data.
-
-        Returns
-        -------
-        time_series : Series
-            Pandas Series containing the datetime values.
-
-        Raises
-        ------
-        ValueError
-            If the specified time column is not in datetime format.
-        """
-        if self.time_col == 'index':
-            time_series = X.index
-        else:
-            time_series = X[self.time_col]
-
-        if not pd.api.types.is_datetime64_any_dtype(time_series):
-            raise ValueError(f"The column '{self.time_col}' must be in datetime format.")
-
-        return pd.Series(time_series)

@@ -61,7 +61,7 @@ from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -87,7 +87,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self.features_ = X
         self.classes_, self.targets_ = np.unique(y, return_inverse=True)
         self.n_features_in_ = X.shape[1]
-        self.is_fitted_ = True
         return self
 
     def predict(self, X):
@@ -103,9 +102,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
+        check_is_fitted(self, attributes=["features_", "classes_", "targets_"])
         X = check_array(X)
         y_pred = np.zeros(X.shape[0], dtype=int)
-        check_is_fitted(self)
         if X.shape[1] != self.n_features_in_:
             raise ValueError(
                 f"X has {X.shape[1]} features, but {self.__class__.__name__} "
@@ -133,7 +132,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        check_is_fitted(self)
+        check_is_fitted(self, attributes=["features_", "classes_", "targets_"])
         X = check_array(X)
         check_classification_targets(y)
         y_pred = self.predict(X)

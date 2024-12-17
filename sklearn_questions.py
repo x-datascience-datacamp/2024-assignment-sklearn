@@ -106,6 +106,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         X = check_array(X)
         y_pred = np.zeros(X.shape[0], dtype=int)
         check_is_fitted(self)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(
+                f"X has {X.shape[1]} features, but {self.__class__.__name__} "
+                f"is expecting {self.n_features_in_} features as input"
+            )
         distances = pairwise_distances(X, self.features_)
         for i in range(X.shape[0]):
             nearest_indices = np.argsort(distances[i])[:self.n_neighbors]

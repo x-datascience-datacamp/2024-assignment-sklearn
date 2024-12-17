@@ -116,11 +116,17 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # Compute pairwise distances between test samples and training samples
         distances = pairwise_distances(X, self.X_train_)
 
-        # Find the index of the nearest neighbors
-        nearest_indices = np.argmin(distances, axis=1)
+        # Get the indices of the k smallest distances for each test sample
+        k_nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
 
-        # Predict the label of the nearest training sample
-        y_pred = self.y_train_[nearest_indices]
+        # Retrieve the labels of the k nearest neighbors
+        k_nearest_labels = self.y_train_[k_nearest_indices]
+
+        # Compute the most frequent label for each test sample
+        y_pred = np.array([
+            np.bincount(labels).argmax() for labels in k_nearest_labels
+        ])
+
         return y_pred
 
     def score(self, X, y):

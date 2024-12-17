@@ -61,6 +61,7 @@ from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from collections import Counter
 
+
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     """KNearestNeighbors classifier."""
 
@@ -86,7 +87,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         check_classification_targets(y)
 
         self.X_ = X
-        self.y_ = y 
+        self.y_ = y
         self.n_features_in_ = X.shape[1]
         self.classes_ = np.unique(y)
 
@@ -105,19 +106,19 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self, ["X_", "y_"])  
-        X = check_array(X)  
-        
+        check_is_fitted(self, ["X_", "y_"])
+        X = check_array(X)
+
         if X.shape[1] != self.n_features_in_:
-            raise ValueError(f"Nb features not match with the training data: {self.n_features_in_}")
+            raise ValueError(f"n_features not match: {self.n_features_in_}")
 
         distances = pairwise_distances(X, self.X_, metric="euclidean")
-        
+
         closest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
 
-        k_nearest_labels = self.y_[closest_indices]  # Shape (n_samples_test, k)
+        k_nearest_labels = self.y_[closest_indices]
 
-        y_pred = [Counter(row).most_common(1)[0][0] for row in k_nearest_labels]
+        y_pred = [Counter(ro).most_common(1)[0][0] for ro in k_nearest_labels]
 
         return np.array(y_pred)
 
@@ -155,7 +156,6 @@ class MonthlySplit(BaseCrossValidator):
         for which this column is not a datetime, it will raise a ValueError.
         To use the index as column just set `time_col` to `'index'`.
     """
-
     def __init__(self, time_col='index'):  # noqa: D107
         self.time_col = time_col
 
@@ -208,8 +208,7 @@ class MonthlySplit(BaseCrossValidator):
             The training set indices for that split.
         idx_test : ndarray
             The testing set indices for that split.
-        """ 
-
+        """
         if self.time_col == 'index':
             time_column = pd.Series(X.index)
         else:
@@ -222,7 +221,6 @@ class MonthlySplit(BaseCrossValidator):
         unique_months = monthly_periods.unique()
         sorted_months = sorted(unique_months)
 
-        n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
 
         for i in range(n_splits):

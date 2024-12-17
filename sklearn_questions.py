@@ -104,17 +104,22 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self, ['X_train_', 'y_train_'])
         X = check_array(X)
-        y_pred = []
-        for x in X:
-            distances = pairwise_distances(x.reshape(1, -1), self.X_train_)
-            nearest_indices = np.argsort(distances,
-                                         axis=1)[0][:self.n_neighbors]
-            values, counts = np.unique(self.y_train_[nearest_indices],
-                                       return_counts=True)
-            y_pred.append(values[np.argmax(counts)])
-        y_pred = np.array(y_pred)
+        predictions = []
 
-        return y_pred
+        for sample in X:
+            distances = pairwise_distances(sample[None, :], self.X_train_)
+            nearest_indices = (
+                np.argpartition(distances.ravel(), self.n_neighbors)
+                [:self.n_neighbors]
+            )
+            nearest_labels = self.y_train_[nearest_indices]
+            most_frequent_label = (
+                max(set(nearest_labels),
+                    key=list(nearest_labels).count)
+            )
+            predictions.append(most_frequent_label)
+
+        return np.array(predictions)
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -132,9 +137,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Accuracy of the model computed for the (X, y) pairs.
         """
         check_is_fitted(self)
-        X, y = check_array(X), np.asarray(y)
-        predictions = self.predict(X)
-        return np.sum(predictions == y) / len(y)
+        X = check_array(X)
+        y_pred = self.predict(X)
+        accuracy = np.mean(y_pred == y)
+        return accuracy
 
 
 class MonthlySplit(BaseCrossValidator):

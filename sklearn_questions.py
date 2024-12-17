@@ -217,7 +217,7 @@ class MonthlySplit(BaseCrossValidator):
 
         grouped = (
             data.sort_values(self.time_col)
-            .groupby(pd.Grouper(key=self.time_col, freq='ME'))
+            .groupby(pd.Grouper(key=self.time_col, freq='M'))
         )
         indices = [group.index for _, group in grouped]
 

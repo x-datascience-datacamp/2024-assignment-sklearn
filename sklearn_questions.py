@@ -111,7 +111,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             return np.full(X.shape[0], self.classes_[0], dtype = int)
         y_pred = []
         for x in X:
-            distance = pairwise_distances(x.reshape(-1,1), self.X_).flatten()
+            if x.ndim == 1:  # If x is a 1D array, it has only one feature
+                x = x.reshape(-1, 1)  # Reshape to (n_features, 1) format
+            else:
+                x = x.reshape(1, -1)
+            distance = pairwise_distances(x, self.X_).flatten()
             nearest_index = np.argsort(distance)[:self.n_neighbors]
             nearest_label = self.y_[nearest_index]
             majority_vote = Counter(nearest_label).most_common(1)[0][0]

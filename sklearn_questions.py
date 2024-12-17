@@ -151,8 +151,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # Check if the model is fitted
         check_is_fitted(self, ["X_train_", "y_train_"])
 
-        # Validate input data and target
-        X, y = check_X_y(X, y)
+        # Validate data
+        X, y = validate_data(self,X, y)
 
         # Make predictions and compare to true labels
         y_pred = self.predict(X)

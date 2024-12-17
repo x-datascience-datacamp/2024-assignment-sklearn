@@ -106,7 +106,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
         X = validate_data(self, X, reset=False)
         X = np.array(X)  # X is the test set ( or unseen data)
-        y_pred = np.zeros(X.shape[0])
+        y_pred = np.zeros(X.shape[0], dtype=object)
         N = X.shape[0]
         # Compute pairwise distances between test samples and training samples
         distances = pairwise_distances(X, self.X_train_)
@@ -117,7 +117,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
             # Majority voting by taking the most common label
             counts = Counter(k_nearest_labels).most_common(1)
-            y_pred[n] = int(counts[0][0])  # Assign the most common label
+            y_pred[n] = counts[0][0]  # Assign the most common label
 
         return y_pred
 

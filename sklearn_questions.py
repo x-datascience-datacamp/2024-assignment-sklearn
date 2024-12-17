@@ -84,10 +84,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         X, y = check_X_y(X, y)
         check_classification_targets(y)
-        
         self.classes_ = np.unique(y)
-        self.n_features_in_ = X.shape[1] 
-
+        self.n_features_in_ = X.shape[1]
         self.X_ = X
         self.y_ = y
         self.is_fitted_ = True
@@ -109,23 +107,18 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         check_is_fitted(self, ["X_", "y_", "classes_", "n_features_in_"])
         X = check_array(X)
 
-
         if X.shape[1] != self.n_features_in_:
             raise ValueError(
-            f"Number of features in X ({X.shape[1]}) does not match "
-            f"the number of features in training data ({self.n_features_in_})."
-        )
+                f"Number of features in X ({X.shape[1]}) does not match "
+                f"the nbr of features in training data ({self.n_features_in_})"
+                )
 
-        # Compute distances between X and training data
-        distances = pairwise_distances(X, self.X_, metric= "euclidean")
+        distances = pairwise_distances(X, self.X_, metric="euclidean")
 
-        # Find the indices of the closest neighbors
         neighbor_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
 
-        # Get the labels of the closest neighbors
         neighbor_labels = self.y_[neighbor_indices]
 
-        # Majority vote for n_neighbors > 1
         if self.n_neighbors == 1:
             y_pred = neighbor_labels.flatten()
         else:
@@ -192,16 +185,19 @@ class MonthlySplit(BaseCrossValidator):
         int
             The number of splits, equal to the number of unique months minus 1.
         """
+        X_copy = X.copy()
         if self.time_col == 'index':
-            time_series = X.index
-        else:
-            time_series = X[self.time_col]
+            X_copy = X_copy.reset_index()
 
-        if not pd.api.types.is_datetime64_any_dtype(time_series):
-            raise ValueError(f"The column '{self.time_col}' must be of datetime type.")
+        if not pd.api.types.is_datetime64_any_dtype(X_copy[self.time_col]):
+            raise ValueError(
+                f"The column '{self.time_col}' is not a datetime."
+                )
 
-        unique_months = time_series.to_period("M").unique()
-        return max(0, len(unique_months) - 1)
+        X_copy = X_copy.sort_values(by=self.time_col)
+        unique_months = X_copy[self.time_col].dt.to_period('M').unique()
+
+        return len(unique_months) - 1
 
     def split(self, X, y=None, groups=None):
         """Generate indices to split data into training and test set.
@@ -218,26 +214,17 @@ class MonthlySplit(BaseCrossValidator):
         Yields
         ------
         tuple of ndarrays
-            The training set indices for that split and the testing set indices.
+           The training set indices for that split and the testing set indices.
         """
-        if self.time_col == 'index':
-            time_series = X.index
-        else:
-            time_series = X[self.time_col]
+        X_copy = X.reset_index()
+        n_splits = self.get_n_splits(X_copy, y, groups)
+        X_grouped = (
+            X_copy.sort_values(by=self.time_col)
+            .groupby(pd.Grouper(key=self.time_col, freq="M"))
+        )
+        idxs = [group.index for _, group in X_grouped]
+        for i in range(n_splits):
+            idx_train = list(idxs[i])
+            idx_test = list(idxs[i+1])
 
-        if not pd.api.types.is_datetime64_any_dtype(time_series):
-            raise ValueError(f"The column '{self.time_col}' must be of datetime type.")
-
-        # Convert to monthly periods for grouping
-        X['period'] = time_series.to_period("M")
-
-        unique_months = X['period'].unique()
-
-        for i in range(len(unique_months) - 1):
-            train_month = unique_months[i]
-            test_month = unique_months[i + 1]
-
-            idx_train = X[X['period'] == train_month].index.to_numpy()
-            idx_test = X[X['period'] == test_month].index.to_numpy()
-
-            yield idx_train, idx_test
+            yield (idx_train, idx_test)

@@ -29,11 +29,11 @@ sets when for each pair of successive months, we learn on the first and
 predict of the following. For example if you have data distributed from
 november 2020 to march 2021, you have have 4 splits. The first split
 will allow to learn on november data and predict on december data, the
-second split to learn december and predict on january etc.
+second split to learn december and predict
 
 We also ask you to respect the pep8 convention: https://pep8.org. This will be
-enforced with `flake8`. You can check that there is no flake8 errors by
-calling `flake8` at the root of the repo.
+enforced with `fon january etc.lake8`. You can check that there is no flake8
+errors by calling `flake8` at the root of the repo.
 
 Finally, you need to write docstrings for the methods you code and for the
 class. The docstring will be checked using `pydocstyle` that you can also
@@ -59,6 +59,7 @@ from sklearn.utils.validation import check_X_y, check_is_fitted
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.metrics import accuracy_score
 
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
@@ -82,7 +83,15 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        self.X_train = np.array(X)
+        self.y_train = np.array(y)
         return self
+
+    def euclideanDistance(x1, x2):
+        """
+        compute the euclidean distance between two points x1 and x2
+        """
+        return np.sqrt(np.sum((x1 - x2) ** 2))
 
     def predict(self, X):
         """Predict function.
@@ -97,7 +106,26 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
+        X = np.array(X) # X is the test set ( or unseen data)
         y_pred = np.zeros(X.shape[0])
+        N = X.shape[0]
+        #for each sample in the X_test
+        for n in range(N):
+            onePointDistances=[]
+            #step1: computing the distances from X[n] to each point X_train[i]
+            for i in range(self.X_train.shape[0]):
+                onePointDistances.append((euclideanDistance(X[n], self.X_train[i]), self.y_train[i]))
+
+            #sorting the distances in order to take the nearest one
+            onePointDistances.sort(key=lambda x:x[0])
+
+            #taking the k nearest neighbors
+            kNearestNeighborsPoint = [label for _, label in onePointDistances[:self.n_neighbors]]
+
+            #majority voting by counting the occurences among the neighbors
+            counts = Counter(kNearestNeighborsPoint).most_common(1)
+            y_pred[n] = counts[0][0]
+
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +143,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        score = 0.0
+        y_pred = self.predict(X)
+        score =  accuracy_score(y, y_pred)
+        return score
 
 
 class MonthlySplit(BaseCrossValidator):

@@ -112,7 +112,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         for n in range(N):
             # Get the indices of the k-nearest neighbors
             nearest_neighbors = np.argsort(distances[n])[:self.n_neighbors]
-            k_nearest_labels = self.y_train[nearest_neighbors]
+            k_nearest_labels = self.y_train_[nearest_neighbors]
 
             # Majority voting by taking the most common label
             counts = Counter(k_nearest_labels).most_common(1)

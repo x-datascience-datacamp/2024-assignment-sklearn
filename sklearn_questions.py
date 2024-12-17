@@ -47,6 +47,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
 """
+
 import numpy as np
 import pandas as pd
 
@@ -59,6 +60,7 @@ from sklearn.utils.validation import check_X_y, check_is_fitted
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
+from pandas.api.types import is_datetime64_any_dtype
 
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
@@ -115,7 +117,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        return 0.0
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -134,7 +136,7 @@ class MonthlySplit(BaseCrossValidator):
         To use the index as column just set `time_col` to `'index'`.
     """
 
-    def __init__(self, time_col='index'):  # noqa: D107
+    def __init__(self, time_col="index"):  # noqa: D107
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
@@ -155,7 +157,17 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        # number of months in the dataframe - 1
+        if self.time_col == "index":
+            X_time_col = X.index
+        else:
+            X_time_col = X[self.time_col]
+        start_date = X_time_col.min()
+        end_date = X_time_col.max()
+        n_splits = (
+            pd.Period(end_date, freq="M") - pd.Period(start_date, freq="M")
+        ).n
+        return n_splits
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +189,30 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        if self.time_col == "index":
+            X_time_col = X.index
+        else:
+            X_time_col = X[self.time_col]
 
+        if not is_datetime64_any_dtype(X_time_col):
+            raise ValueError(f"{self.time_col} is not of type datetime")
         n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
+        start_date = X_time_col.min().normalize().replace(day=1)
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+            # i is the index of the starting month
+            train_start = start_date + pd.offsets.MonthBegin(i)
+            train_end = start_date.replace(
+                hour=23, minute=59, second=59
+            ) + pd.offsets.MonthEnd(i + 1)
+            test_start = start_date + pd.offsets.MonthBegin(i + 1)
+            test_end = start_date.replace(
+                hour=23, minute=59, second=59
+            ) + pd.offsets.MonthEnd(i + 2)
+            idx_train = np.arange(n_samples)[
+                (X_time_col >= train_start) & (X_time_col <= train_end)
+            ]
+            idx_test = np.arange(n_samples)[
+                (X_time_col >= test_start) & (X_time_col <= test_end)
+            ]
+            yield (idx_train, idx_test)

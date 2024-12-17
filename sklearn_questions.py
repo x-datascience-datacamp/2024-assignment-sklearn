@@ -212,7 +212,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         if self.time_col != 'index':
             if not isinstance(X[self.time_col].iloc[0],
                               type(pd.Timestamp('now'))):
@@ -236,14 +235,11 @@ class MonthlySplit(BaseCrossValidator):
         # Spécifiez le format explicitement pour éviter les avertissements
         months_years = np.unique(np.sort(pd.to_datetime(x_df['month_year'],
                                                         format='%b-%Y')))
-        x_df['month_year'] = pd.to_datetime(x_df['month_year'],
-                                            format='%b-%Y')
+        x_df['month_year'] = pd.to_datetime(x_df['month_year'], format='%b-%Y')
         x_df = x_df.reset_index()
         for i in range(n_splits):
             idx_train = list(
                 x_df[x_df['month_year'] == months_years[i]].index)
             idx_test = list(
-                x_df[x_df['month_year'] == months_years[i+1]].index)
-            yield (
-                idx_train, idx_test
-            )
+                x_df[x_df['month_year'] == months_years[i + 1]].index)
+            yield (idx_train, idx_test)

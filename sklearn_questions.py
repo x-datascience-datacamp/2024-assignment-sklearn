@@ -237,9 +237,6 @@ class MonthlySplit(BaseCrossValidator):
             time_col = pd.Series(X.index, name='time_col').reset_index(
                 drop=True)
         else:
-            if self.time_col not in X.columns:
-                raise ValueError(
-                    f"{self.time_col} column not found in input data.")
             time_col = X[self.time_col].reset_index(drop=True)
 
         # Ensure the time column is datetime

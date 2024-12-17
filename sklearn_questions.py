@@ -48,8 +48,10 @@ from sklearn.metrics.pairwise import pairwise_distances
 to compute distances between 2 sets of samples.
 """
 import numpy as np
+
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
+
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import BaseCrossValidator
 from sklearn.utils.validation import check_X_y, check_is_fitted
@@ -87,7 +89,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self.y_ = self.label_encoder_.fit_transform(y)
         self.X_ = X
         self.classes_ = self.label_encoder_.classes_
-        self.n_features_in_ = X.shape[1] 
+
+        self.n_features_in_ = X.shape[1]
+
         return self
 
     def predict(self, X):
@@ -104,13 +108,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-        X = check_array(X, ensure_2d=True)
 
-        if X.shape[1] != getattr(self, "n_features_in_", X.shape[1]):
+        if X.ndim != 2:
+            raise ValueError("X must be a 2D array.")
+        if X.shape[1] != self.n_features_in_:
             raise ValueError(
                 f"X has {X.shape[1]} features, but this estimator expects "
                 f"{self.n_features_in_} features as input."
             )
+
+        X = check_array(X, ensure_2d=True)
 
         distances = pairwise_distances(X, self.X_)
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]

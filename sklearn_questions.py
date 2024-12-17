@@ -55,11 +55,9 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
-from scipy.stats import mode
 
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
@@ -83,7 +81,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = self._validate_data(X, y, accept_sparse=True, multi_output=False)
+        X, y = self._validate_data(X, y, accept_sparse=True,
+                                   multi_output=False)
         check_classification_targets(y)
         self._X_train = X
         self._y_train = y
@@ -228,7 +227,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             Testing set indices for that split.
         """
-         # Extract and validate the time column
         if self.time_col == 'index':
             time_col = pd.Series(X.index, name='time_col').reset_index(
                 drop=True)

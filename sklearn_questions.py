@@ -102,13 +102,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self, ['X_train', 'y_test'])
+        check_is_fitted(self, ['X_train_', 'y_test_'])
         X = check_array(X)
         X = np.array(X)  # X is the test set ( or unseen data)
         y_pred = np.zeros(X.shape[0])
         N = X.shape[0]
         # Compute pairwise distances between test samples and training samples
-        distances = pairwise_distances(X, self.X_train)
+        distances = pairwise_distances(X, self.X_train_)
         for n in range(N):
             # Get the indices of the k-nearest neighbors
             nearest_neighbors = np.argsort(distances[n])[:self.n_neighbors]
@@ -136,7 +136,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Accuracy of the model computed for the (X, y) pairs.
         """
         X = check_array(X)
-        y = check_classification_targets(y)
+        check_classification_targets(y)
         score = 0.0
         y_pred = self.predict(X)
         score = accuracy_score(y, y_pred)

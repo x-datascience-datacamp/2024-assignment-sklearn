@@ -125,7 +125,10 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
                 nearest_labels,
                 return_counts=True
             )
-            unique_labels, counts = np.unique(closest_labels, return_counts=True)
+            unique_labels, counts = np.unique(
+                closest_labels,
+                return_counts=True
+            )
             y_pred[i] = unique_labels[np.argmax(counts)]
 
         return y_pred

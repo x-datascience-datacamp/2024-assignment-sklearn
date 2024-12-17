@@ -56,14 +56,14 @@ from sklearn.base import ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 from collections import Counter
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -87,6 +87,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         X, y = check_X_y(X, y, accept_sparse=True)
         check_classification_targets(y)
 
+        X, y = validate_data(self, X, y)
+
         self.X_train_ = X
         self.y_train_ = y
         self.classes_ = np.unique(y)
@@ -107,7 +109,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        X = check_array(X, accept_sparse=True)
+        X = validate_data(self, X, reset=False)
         check_is_fitted(self, ['X_train_', 'y_train_'])
 
         if X.shape[1] != self.n_features_in_:

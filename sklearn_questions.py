@@ -82,7 +82,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             The current instance of the classifier
         """
         # Validate data
-        X, y = self.validate_data(X=X, y=y, accept_sparse=False, multi_output=False)
+        X, y = validate_data(self,X, y)
 
         # Store the training data
         self.X_train_ = X
@@ -108,6 +108,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         # Check if the model is fitted
         check_is_fitted(self, ["X_train_", "y_train_"])
+
+        # Input validation
+        X = validate_data(self, X, reset=False)
 
         # Validate input data and number of features
         if X.shape[1] != self.n_features_in_:

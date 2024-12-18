@@ -90,7 +90,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self.y_ = y
 
         return self
-    
+
     def predict(self, X):
         """
         Predict the class labels for the provided data.
@@ -105,7 +105,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray of shape (n_samples,)
         Predicted class labels.
         """
-            
         check_is_fitted(self)
 
         # Input validation
@@ -182,7 +181,6 @@ class MonthlySplit(BaseCrossValidator):
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set."""
-
         if self.time_col == "index":
             time_column = X.index
         else:

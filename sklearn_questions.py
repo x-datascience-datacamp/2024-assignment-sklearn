@@ -106,18 +106,15 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self, ['X_', 'y_'])
-        X = self._validate_data(X, accept_sparse=False, reset=False)
-        distances = pairwise_distances(X, self.X_)
-
-        # Find indices of the closest neighbors for each test sample
-        closest = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-
-        # Predict labels based on the most frequent class among neighbors
-        y_pred = np.apply_along_axis(
-            lambda x: np.unique(x, return_counts=True)[0][
-                np.argmax(np.unique(x, return_counts=True)[1])], axis=1,
-            arr=self.y_[closest])
+        check_is_fitted(self, ['_X_train', '_y_train'])
+        X = self._validate_data(X, accept_sparse=True, reset=False)
+        y_pred = np.zeros(X.shape[0], dtype=self._y_train.dtype)
+        dist = pairwise_distances(X, self._X_train, metric='euclidean')
+        idx = np.argsort(dist, axis=1)[:, :self.n_neighbors]
+        labels = self._y_train[idx]
+        for i, label in enumerate(labels):
+            unique_labels, counts = np.unique(label, return_counts=True)
+            y_pred[i] = unique_labels[np.argmax(counts)]
 
         return y_pred
 
@@ -136,10 +133,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        check_classification_targets(y)
-        check_is_fitted(self, ['X_', 'y_'])
+        check_is_fitted(self, ['_X_train', '_y_train'])
+        X = self._validate_data(X, accept_sparse=True, reset=False)
+        y = self._validate_data(y, ensure_2d=False, reset=False)
+
         y_pred = self.predict(X)
-        return np.mean(y == y_pred)
+
+        return np.mean(y_pred == y)
+
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -214,11 +215,12 @@ class MonthlySplit(BaseCrossValidator):
         """
 
         if self.time_col != 'index':
-            if not isinstance(X[self.time_col].iloc[0], type(pd.Timestamp('now'))):
-                raise ValueError('datetime')
+            if not isinstance(X[self.time_col].iloc[0],
+                              type(pd.Timestamp('now'))):
+                raise ValueError('Not datetime')
         else:
             if not isinstance(X.index[0], type(pd.Timestamp('now'))):
-                raise ValueError('datetime')
+                raise ValueError('Not datetime')
         if not isinstance(X, type(pd.DataFrame())):
             x_df = pd.DataFrame({'date': X.index, 'val': X.values})
             x_df['date'] = pd.to_datetime(x_df['date'])
@@ -228,15 +230,18 @@ class MonthlySplit(BaseCrossValidator):
         else:
             x_df = X.copy()
             if 'date' not in x_df.columns[0]:
-                x_df = x_df.rename(columns={self.time_col: 'date'}, inplace=False)
+                x_df = x_df.rename(columns={self.time_col: 'date'},
+                                   inplace=False)
         n_splits = self.get_n_splits(x_df, y, groups)
         x_df['month_year'] = pd.to_datetime(x_df['date']).dt.strftime('%b-%Y')
-        months_years = np.unique(np.sort(pd.to_datetime(x_df['month_year'], format='%b-%Y')))
+
+        months_years = np.unique(np.sort(pd.to_datetime(x_df['month_year'],
+                                                        format='%b-%Y')))
         x_df['month_year'] = pd.to_datetime(x_df['month_year'], format='%b-%Y')
         x_df = x_df.reset_index()
         for i in range(n_splits):
-            idx_train = list(x_df[x_df['month_year'] == months_years[i]].index)
-            idx_test = list(x_df[x_df['month_year'] == months_years[i+1]].index)
-            yield (
-                idx_train, idx_test
-            )
+            idx_train = list(
+                x_df[x_df['month_year'] == months_years[i]].index)
+            idx_test = list(
+                x_df[x_df['month_year'] == months_years[i + 1]].index)
+            yield (idx_train, idx_test)

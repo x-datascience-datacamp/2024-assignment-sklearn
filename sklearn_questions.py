@@ -95,7 +95,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self.X_ = X
         self.y_ = y
         self.classes_ = sorted(list(set(y)))
-        #self.n_features_in_ = X.shape[1]
+        # self.n_features_in_ = X.shape[1]
         X, y = validate_data(self, X, y)
 
         return self

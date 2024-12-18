@@ -183,6 +183,34 @@ class MonthlySplit(BaseCrossValidator):
         self.time_col = time_col
 
     def _get_time_col(self, X):
+        """
+        Extracts the time column from the given DataFrame and validates
+        its datatype.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame
+            The input DataFrame from which the time column is extracted.
+            The DataFrame may have the time column as part of its index or as
+            a regular column.
+
+        Returns
+        -------
+        pandas.Series
+            The extracted time column as a pandas Series.
+
+        Raises
+        ------
+        ValueError
+            If the extracted time column is not of type `datetime64`.
+
+        Notes
+        -----
+        - The function first resets the index of the DataFrame to ensure
+        the time column is accessible, whether it is an index or a column.
+        - The column specified by `self.time_col` is then validated to
+        confirm it is of a datetime type.
+        """
         time_col = X.reset_index()[self.time_col]
 
         if not np.issubdtype(time_col.dtype, np.datetime64):

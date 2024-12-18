@@ -83,7 +83,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = check_X_y(X, y)
+        X, y = self._validate_data(X, y, accept_sparse=True)
         check_classification_targets(y)
         self.n_features_in_ = X.shape[1]
         self.classes_ = unique_labels(y)

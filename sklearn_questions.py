@@ -110,8 +110,9 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
         y_pred = np.zeros(X.shape[0])
         for i in range(X.shape[0]):
-            best_indice = np.argsort(distances[i])[0]
-            y_pred[i] = self.y_[best_indice]
+            best_indices = np.argsort(distances[i])[:self.n_neighbors]
+            voters = self.y_[best_indices]
+            y_pred[i] = np.argmax(np.bincount(voters))
 
         return y_pred.astype(int)
 

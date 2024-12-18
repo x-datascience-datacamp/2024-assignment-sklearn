@@ -52,6 +52,7 @@ import pandas as pd
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
+# from sklearn.utils.estimator_checks import check_estimator
 
 from sklearn.model_selection import BaseCrossValidator
 
@@ -59,6 +60,11 @@ from sklearn.utils.validation import check_X_y, check_is_fitted
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.utils.multiclass import unique_labels
+
+from sklearn.metrics import euclidean_distances
+
+from collections import Counter
 
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
@@ -82,6 +88,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+
+        self.X_train_ = X
+        self.y_train_ = y
+    
+        self.classes_ = np.unique(y)
+
         return self
 
     def predict(self, X):
@@ -97,8 +111,28 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
+        check_is_fitted(self)
+
+        X = check_array(X)
+
+        distances = pairwise_distances(X, self.X_train_, metric='euclidean')
+
+        nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]        
         y_pred = np.zeros(X.shape[0])
+
         return y_pred
+    
+        # check_is_fitted(self, ['X_train_', 'y_train_'])
+        # X = check_array(X)
+        # y_pred = np.zeros(X.shape[0])
+
+        # distances = pairwise_distances(X, self.X_train_, metric='euclidean')
+
+        # nearest_neighbors = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+        # nearest_labels = self.y_train_[nearest_neighbors]
+        # y_pred = np.array([np.bincount(labels).argmax() for labels in nearest_labels])
+        # return y_pred
+    # https://scikit-learn.org/stable/developers/develop.html#rolling-your-own-estimator
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -115,8 +149,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
 
+        y_pred = self.predict(X)
+        accuracy = np.mean(y_pred == y)
+        return accuracy
+        # return 0.
+
+
+# check_estimator(KNearestNeighbors(n_neighbors=1)) 
 
 class MonthlySplit(BaseCrossValidator):
     """CrossValidator based on monthly split.
@@ -155,6 +195,9 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
+
+        # return len(np.unique(y.index.values))
+
         return 0
 
     def split(self, X, y, groups=None):

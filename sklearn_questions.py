@@ -185,7 +185,7 @@ class MonthlySplit(BaseCrossValidator):
         self.splits = [first_split]
         for m in range(1, len(months)):
             split = X.loc[(X[self.time_col] > months[m-1]) &
-                (X[self.time_col] <= months[m])].index.to_numpy()
+                          (X[self.time_col] <= months[m])].index.to_numpy()
             self.splits.append(split)
 
         return len(months) - 1

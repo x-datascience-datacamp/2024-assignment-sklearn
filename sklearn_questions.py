@@ -54,15 +54,11 @@ import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.metrics import euclidean_distances
-from scipy.stats import mode
 
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import validate_data, check_is_fitted
 from sklearn.utils.multiclass import unique_labels
-from sklearn.utils.validation import check_array
-from sklearn.utils.multiclass import check_classification_targets
-from sklearn.metrics.pairwise import pairwise_distances
 
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
@@ -94,21 +90,22 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self.y_ = y
 
         return self
-
+    
     def predict(self, X):
-        """Predict function.
+        """
+        Predict the class labels for the provided data.
 
         Parameters
         ----------
-        X : ndarray, shape (n_test_samples, n_features)
-            Data to predict on.
+        X : array-like of shape (n_samples, n_features)
+        The input samples.
 
         Returns
-        ----------
-        y : ndarray, shape (n_test_samples,)
-            Predicted class labels for each test data sample.
+        -------
+        y : ndarray of shape (n_samples,)
+        Predicted class labels.
         """
-
+            
         check_is_fitted(self)
 
         # Input validation
@@ -130,9 +127,9 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
-            Data to score on.
+        Data to score on.
         y : ndarray, shape (n_samples,)
-            target values.
+        target values.
 
         Returns
         ----------
@@ -170,7 +167,8 @@ class MonthlySplit(BaseCrossValidator):
 
         # Ensure the time column is datetime
         if not pd.api.types.is_datetime64_any_dtype(time_column):
-            raise ValueError(f"Time column {self.time_col} must be of datetime type")
+            raise ValueError(
+                f"Time column {self.time_col} must be of datetime type")
 
         # Extract unique months
         dates = pd.to_datetime(X.index)
@@ -192,18 +190,19 @@ class MonthlySplit(BaseCrossValidator):
 
         # Ensure the time column is datetime
         if not pd.api.types.is_datetime64_any_dtype(time_column):
-            raise ValueError(f"Time column {self.time_col} must be of datetime type")
+            raise ValueError(
+                f"Time column {self.time_col} must be of datetime type")
 
         dates = pd.to_datetime(X.index)
         months = dates.to_period("M")
         unique_months = months.unique()
 
         n_splits = self.get_n_splits(X, y, groups)
-        
+
         for i in range(n_splits):
             train_month = unique_months[i]
             test_month = unique_months[i + 1]
-            
+
             idx_train = np.where(months == train_month)[0]
             idx_test = np.where(months == test_month)[0]
 

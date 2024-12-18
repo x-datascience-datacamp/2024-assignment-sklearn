@@ -82,13 +82,22 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X = check_array(X)
+        # X = check_array(X)
+        # check_classification_targets(y)
+        # X, y = check_X_y(X, y)
+        # self.classes_ = np.unique(y)
+        # self.n_features_in_ = X.shape[1]
+        # self.X_ = X
+        # self.y_ = y
+        # return self
+        X, y = self._validate_data(X, y, accept_sparse=True,
+                                   multi_output=False)
         check_classification_targets(y)
-        X, y = check_X_y(X, y)
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
-        self.X_ = X
+        self.X_= X
         self.y_ = y
+
         return self
 
     def predict(self, X):
@@ -104,6 +113,23 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
+        # check_is_fitted(self)
+        # X = check_array(X)
+        # distances = pairwise_distances(X, self.X_)
+        # if X.shape[1] != self.n_features_in_:
+        #     raise ValueError(
+        #         f"X has {X.shape[1]} features, but {self.__class__.__name__} "
+        #         f"was trained with {self.n_features_in_} features"
+        #     )
+        # nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+        # neighbor_labels = self.y_[nearest_indices]
+        # y_pred = np.array([
+        #     np.unique(labels, return_counts=True)[0][np.argmax(
+        #         np.unique(labels, return_counts=True)[1]
+        #     )]
+        #     for labels in neighbor_labels
+        # ])
+        # return y_pred
         check_is_fitted(self, ['X_', 'y_'])
         X = check_array(X)
         y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)

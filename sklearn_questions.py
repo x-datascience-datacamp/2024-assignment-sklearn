@@ -110,8 +110,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         DIS = pairwise_distances(self.X, X)
         DIS_idx = np.argsort(DIS, axis=0)[:self.n_neighbors, :]
         y_pred = self.y_[DIS_idx]
-        counts = np.zeros((len(self.classes_),X.shape[0]))
-        for k,clf in enumerate(self.classes_):
+        counts = np.zeros((len(self.classes_), X.shape[0]))
+        for k, clf in enumerate(self.classes_):
             counts[k] = (y_pred == clf).sum(axis=0)
         y_pred = self.classes_[np.argmax(counts, axis=0)]
         return y_pred.reshape(-1)
@@ -177,7 +177,7 @@ class MonthlySplit(BaseCrossValidator):
         # faire un group_by puis un len de group
         if self.time_col != 'index':
             date = X.set_index(self.time_col)
-        else: 
+        else:
             date = X
         date.index = pd.to_datetime(date.index)
 
@@ -204,7 +204,7 @@ class MonthlySplit(BaseCrossValidator):
             The testing set indices for that split.
         """
         n_splits = self.get_n_splits(X, y, groups)
-        
+
         if self.time_col != 'index':
             if not pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
                 raise ValueError("This is not a datetime object")

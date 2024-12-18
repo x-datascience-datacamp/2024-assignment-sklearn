@@ -70,7 +70,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     def fit(self, X, y):
         """Fitting function.
 
-        Parameters
+         Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
             Data to train the model.
@@ -82,13 +82,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X = check_array(X)
-        check_classification_targets(y)
         X, y = check_X_y(X, y)
+        check_classification_targets(y)
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
-        self.X_ = X
-        self.y_ = y
+        self.X_train_ = X
+        self.y_train_ = y
+
         return self
 
     def predict(self, X):
@@ -136,7 +136,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         check_is_fitted(self)
         X = check_array(X)
         y_pred = self.predict(X)
-        return np.mean(y_pred == y)
+        accuracy = np.mean(y_pred == y)
+        return accuracy
+
 
 
 class MonthlySplit(BaseCrossValidator):

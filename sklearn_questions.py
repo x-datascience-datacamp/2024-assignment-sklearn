@@ -84,26 +84,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        # Validate input data and target labels
         X, y = check_X_y(X, y)
         check_classification_targets(y)
-
-        # Store the number of features for later validation
         self.n_features_in_ = X.shape[1]
-
-        # Get the unique class labels
         self.classes_ = unique_labels(y)
-
-        # Check if at least two classes are present
         if len(self.classes_) < 2:
             raise ValueError("Only one class present in the data.")
-
-        # Store the training data and target labels for predictions
         self.X_ = X
         self.y_ = y
-
-        # Indicate that the model is fitted
-        self.is_fitted_ = True
 
         return self
 
@@ -125,11 +113,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y_pred = []
         for i, x in enumerate(X):
             distances = pairwise_distances(x.reshape(1, -1), self.X_)
-            idx = np.argsort(distances, axis=1)[0][: self.n_neighbors]
+            idx = np.argsort(distances, axis=1)[0][:self.n_neighbors]
             values, counts = np.unique(self.y_[idx], return_counts=True)
             y_pred.append(values[np.argmax(counts)])
         y_pred = np.array(y_pred)
-
         return y_pred
 
     def score(self, X, y):
@@ -150,8 +137,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         check_is_fitted(self)
         X = check_array(X)
         y_pred = self.predict(X)
-        score = np.mean(y_pred == y)
-        return score
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):

@@ -55,13 +55,15 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted
+# from sklearn.utils.validation import check_X_y, check_array
+from sklearn.utils.validation import validate_data
+from sklearn.preprocessing import LabelEncoder
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +84,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        self.X_, y = validate_data(self, X, y)
+        check_classification_targets(y)
+        self.label_encoder_ = LabelEncoder()
+        self.y_ = self.label_encoder_.fit_transform(y)
+        self.classes_ = self.label_encoder_.classes_
+
+        self.single_class_ = (len(self.classes_) == 1)
+        if self.single_class_:
+            self.constant_class_ = self.classes_[0]
+
         return self
 
     def predict(self, X):
@@ -97,7 +109,21 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)  # Check if fit has been called
+
+        X = validate_data(self, X, reset=False)
+
+        if self.single_class_:
+            return np.full(X.shape[0], self.constant_class_)
+
+        distances = pairwise_distances(X, self.X_, metric='euclidean')
+
+        y_pred = np.zeros(X.shape[0], dtype=int)
+        for i in range(X.shape[0]):
+            best_indices = np.argsort(distances[i])[:self.n_neighbors]
+            voters = self.y_[best_indices]
+            y_pred[i] = np.argmax(np.bincount(voters))
+
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +141,15 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        check_is_fitted(self)  # Check if fit has been called
+
+        X, y = validate_data(self, X, y, reset=False)
+
+        y_pred = self.predict(X)
+
+        score = np.mean(y_pred == y)
+
+        return score
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +189,22 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        X = X.reset_index()
+        if not pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
+            raise ValueError(f'\'{self.time_col}\' isn\'t in datetime format')
+        X = X.sort_values(by=self.time_col)
+
+        grouper = pd.Grouper(key=self.time_col, freq='ME')
+        months = list(X.groupby(grouper).groups.keys())
+
+        first_split = X.loc[X[self.time_col] <= months[0]].index.to_numpy()
+        self.splits = [first_split]
+        for m in range(1, len(months)):
+            split = X.loc[(X[self.time_col] > months[m-1]) &
+                          (X[self.time_col] <= months[m])].index.to_numpy()
+            self.splits.append(split)
+
+        return len(months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +226,11 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
+        # n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
+            idx_train = self.splits[i]
+            idx_test = self.splits[i+1]
             yield (
                 idx_train, idx_test
             )

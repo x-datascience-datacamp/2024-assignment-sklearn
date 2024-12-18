@@ -64,8 +64,6 @@ from sklearn.metrics import euclidean_distances, accuracy_score
 # from sklearn.metrics.pairwise import pairwise_distances
 from pandas.api.types import is_datetime64_any_dtype
 
-from scipy.stats import mode
-
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
@@ -134,7 +132,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             return np.full(X.shape[0], self.constant_prediction_)
 
         y_pred = np.zeros(X.shape[0])
-        classes_ = self.classes_
         dist_X_2_train = euclidean_distances(X, self.X_)
         nearest_neighbors_idx = np.argsort(dist_X_2_train, axis=-1)[
             :, : self.n_neighbors

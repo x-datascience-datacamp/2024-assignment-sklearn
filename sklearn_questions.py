@@ -94,8 +94,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
                                    multi_output=False)
         check_classification_targets(y)
         self.classes_ = np.unique(y)
-        self.n_features_in_ = X.shap
-        self.X_= X
+        self.n_features_in_ = X.shape[1]
+        if len(self.classes_) < 2:
+            raise ValueError("Only one class present in the data.")
+        self.X_ = X
         self.y_ = y
 
         return self
@@ -139,7 +141,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         for i, labels in enumerate(nearest_labels):
             unique_labels, counts = np.unique(labels, return_counts=True)
             y_pred[i] = unique_labels[np.argmax(counts)]
-
         return y_pred
 
     def score(self, X, y):

@@ -82,9 +82,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X = check_array(X)
         check_classification_targets(y)
-        X, y = check_X_y(X, y)
+        X, y = self._validate_data(X, y, accept_sparse=True,
+                                   multi_output=False)
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
         self.X_ = X
@@ -104,8 +104,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self)
+        check_is_fitted(self, ['X_', 'y_'])
         X = check_array(X)
+        X = self._validate_data(X, accept_sparse=True, reset=False)
         distances = pairwise_distances(X, self.X_)
         if X.shape[1] != self.n_features_in_:
             raise ValueError(

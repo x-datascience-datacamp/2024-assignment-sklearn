@@ -94,7 +94,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
                                    multi_output=False)
         check_classification_targets(y)
         self.classes_ = np.unique(y)
-        self.n_features_in_ = X.shape[1]
+        self.n_features_in_ = X.shap
         self.X_= X
         self.y_ = y
 
@@ -157,9 +157,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
+        # check_is_fitted(self)
+        # X = check_array(X)
+        # return np.mean(self.predict(X) == y)
         check_is_fitted(self)
-        X = check_array(X)
+        X = self._validate_data(X, accept_sparse=True, reset=False)
+        y = self._validate_data(y, ensure_2d=False, reset=False)
         return np.mean(self.predict(X) == y)
+
 
 
 # class KNearestNeighbors(ClassifierMixin, BaseEstimator):

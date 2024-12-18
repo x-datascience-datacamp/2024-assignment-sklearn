@@ -85,10 +85,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             The current instance of the classifier
         """
         X, y = check_X_y(X, y)
-        X, y = validate_data(self, X, y, reset=True)
         check_classification_targets(y)
-        self.X_ = X
-        self.y_ = y
+        X, y = validate_data(self, X, y)
+        self._X, self._y = X, y
+        self.classes_ = np.unique(y)
         self.is_fitted = True
 
         return self
@@ -179,17 +179,16 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
+        X_copy = X.copy()
         if self.time_col == 'index':
-            time_column = pd.Series(X.index)
-        else:
-            time_column = X[self.time_col]
+            X_copy = X_copy.reset_index()
+        if not pd.api.types.is_datetime64_any_dtype(X_copy[self.time_col]):
+            raise ValueError(
+                f"The column '{self.time_col}' is not a datetime.")
+        unique_months = X_copy[self.time_col].dt.to_period('M').unique()
+        return len(unique_months) - 1
 
-        if not np.issubdtype(time_column.dtype, np.datetime64):
-            raise ValueError("The time_col must be of datetime type.")
-
-        return len(time_column.dt.to_period('M').unique()) - 1
-
-    def split(self, X, y, groups=None):
+    def split(self, X, y=None, groups=None):
         """Generate indices to split data into training and test set.
 
         Parameters
@@ -209,22 +208,14 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-        if self.time_col == 'index':
-            time_column = pd.Series(X.index)
-        else:
-            time_column = X[self.time_col]
-
-        if not np.issubdtype(time_column.dtype, np.datetime64):
-            raise ValueError("The time_col must be of datetime type.")
-
-        monthly_periods = time_column.dt.to_period('M')
-        unique_months = monthly_periods.unique()
-        unique_months = sorted(unique_months)
-        n_splits = self.get_n_splits(X, y, groups)
+        X_copy = X.reset_index()
+        n_splits = self.get_n_splits(X_copy, y, groups)
+        X_grouped = (
+            X_copy.sort_values(by=self.time_col)
+            .groupby(pd.Grouper(key=self.time_col, freq="ME"))
+        )
+        idxs = [group.index for _, group in X_grouped]
         for i in range(n_splits):
-            idx_train = np.where(monthly_periods == unique_months[i])[0]
-            idx_test = np.where(monthly_periods == unique_months[i + 1])[0]
-            yield (
-                idx_train, idx_test
-            )
-        return None
+            idx_train = list(idxs[i])
+            idx_test = list(idxs[i + 1])
+            yield (idx_train, idx_test)

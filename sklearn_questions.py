@@ -58,6 +58,7 @@ from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_X_y, check_is_fitted
 from sklearn.utils.validation import check_array
+from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -84,6 +85,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             The current instance of the classifier
         """
         X, y = check_X_y(X, y)
+        X, y = validate_data(self, X, y, reset=True)
         check_classification_targets(y)
         self.label_encoder_ = LabelEncoder()
         y = self.label_encoder_.fit_transform(y)
@@ -91,7 +93,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self.y_ = y
         self.classes_ = self.label_encoder_.classes_
         self.X_ = X
-        self.n_features_in_ = X.shape[1]
         return self
 
     def predict(self, X):
@@ -109,6 +110,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
         X = check_array(X)
+        X = validate_data(self, X, reset=False)
 
         # Compute pairwise distances between test samples and training data
         distances = pairwise_distances(X, self.X_)

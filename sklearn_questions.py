@@ -59,6 +59,7 @@ from sklearn.utils.validation import check_is_fitted
 # from sklearn.utils.validation import check_X_y, check_array
 from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import unique_labels
+from sklearn.preprocessing import LabelEncoder
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 

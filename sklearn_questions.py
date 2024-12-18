@@ -177,7 +177,7 @@ class MonthlySplit(BaseCrossValidator):
         """
         X = X.reset_index()
         if not pd.is_datetime64_any_dtype(X[self.time_col]):
-            raise ValueError(f'{self.time_col} isn't in datetime format')
+            raise ValueError(f'{self.time_col} isn\'t in datetime format')
         X = X.sort_values(by=self.time_col)
 
         grouper = pd.Grouper(key=self.time_col, freq='ME')

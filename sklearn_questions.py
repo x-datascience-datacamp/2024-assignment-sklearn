@@ -85,19 +85,12 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         """
         # Check that X and y have correct shape
         X, y = self._validate_data(X, y, accept_sparse=False, ensure_2d=True)
-
-        # Store the classes seen during fit
-        check_classification_targets(y)     # check that y contains categorical value and not continuous value
-        self.classes_ = np.unique(y)        # find unique value of y
-
-        # X_ and y_ are the training and label set
+        check_classification_targets(y)
+        self.classes_ = np.unique(y)
+        self.n_features_in_ = X.shape[1]
         self.X_ = X
         self.y_ = y
-
-        self.n_features_in_ = X.shape[1]    # Set the n_features_in_ attribute
-        
         self.is_fitted_ = True
-
         return self
 
     def predict(self, X):
@@ -113,14 +106,9 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        # we check if the model has been adjusted by ensuring that X_ and y_ exist
         check_is_fitted(self, ['X_', 'y_'])
-
-        # check that X is a numpy array valid and convert it if necessary
-        # X is the test set
         X = self._validate_data(X, accept_sparse=False, reset=False)
         y_pred = []
-
         for x in X:
             distances = pairwise_distances(x.reshape(1, -1), self.X_)
             nearest_indices = np.argsort(
@@ -129,7 +117,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
                 self.y_[nearest_indices], return_counts=True)
             y_pred.append(values[np.argmax(counts)])
         y_pred = np.array(y_pred)
-
         return y_pred
 
     def score(self, X, y):
@@ -152,8 +139,8 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y = self._validate_data(y, ensure_2d=False, reset=False)
         y_pred = self.predict(X)
         accuracy = np.mean(y_pred == y)
-    
         return accuracy
+
 
 
 class MonthlySplit(BaseCrossValidator):

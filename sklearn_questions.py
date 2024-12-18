@@ -49,19 +49,19 @@ to compute distances between 2 sets of samples.
 """
 import numpy as np
 import pandas as pd
-
-from sklearn.base import BaseEstimator
-from sklearn.base import ClassifierMixin
-
-from sklearn.model_selection import BaseCrossValidator
-
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
-from sklearn.utils.multiclass import check_classification_targets
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.model_selection import BaseCrossValidator
+from sklearn.utils.multiclass import check_classification_targets
+from sklearn.utils.validation import (
+    check_array,
+    check_is_fitted,
+    check_X_y,
+    validate_data,
+)
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,7 +82,34 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+        self.classes_ = np.unique(y)
+        self.n_features_in_ = X.shape[1]
+        self.X_ = X
+        self.y_ = y
+
         return self
+
+    def majority_vote_(self, k_nearest):
+        """Return a majority vote in y.
+
+        Parameters
+        ----------
+        k_nearest: ndarray, shape (n_test_samples, n_neighbors)
+            Indices in y of the k-nearest train samples for each test sample
+
+        Returns
+        ----------
+        y: array, shape(n_test_samples, 1)
+            Predicted class from majority vote
+        """
+        y_pred = []
+        nearest_labels = self.y_[k_nearest]
+        for i in range(nearest_labels.shape[0]):
+            values, counts = np.unique(nearest_labels[i], return_counts=True)
+            y_pred.append(values[np.argmax(counts)])
+        return np.array(y_pred)
 
     def predict(self, X):
         """Predict function.
@@ -97,7 +124,18 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(
+                "The model is fitted on a different number"
+                "of features as the input array X"
+                )
+
+        distances = pairwise_distances(X, self.X_)
+        k_nearest = np.argpartition(distances,
+                                    self.n_neighbors)[:, :self.n_neighbors]
+        y_pred = self.majority_vote_(k_nearest)
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +153,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        check_is_fitted(self)
+        X = check_array(X)
+        accuracy = np.mean(self.predict(X) == y)
+        return accuracy
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -137,6 +178,31 @@ class MonthlySplit(BaseCrossValidator):
     def __init__(self, time_col='index'):  # noqa: D107
         self.time_col = time_col
 
+    def check_time_col(self, X):
+        """Return the time column of X.
+
+        Parameters
+        ----------
+        X: array-like of shape (n_samples, n_features)
+
+        Returns
+        ----------
+        time_col: pd.Series
+        """
+        if self.time_col == 'index':
+            time_col = pd.Series(X.index, name='time_col').reset_index(
+                drop=True)
+        else:
+            if self.time_col not in X.columns:
+                raise ValueError
+            time_col = X[self.time_col].reset_index(drop=True)
+
+        # Ensure the time column is datetime
+        if not pd.api.types.is_datetime64_any_dtype(time_col):
+            raise ValueError(
+                f"{self.time_col} must be a datetime column or index.")
+        return time_col
+
     def get_n_splits(self, X, y=None, groups=None):
         """Return the number of splitting iterations in the cross-validator.
 
@@ -155,7 +221,11 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        time_col = self.check_time_col(X)
+        time_col = pd.to_datetime(time_col)
+        unique_months = time_col.dt.to_period('M').unique()
+
+        return len(unique_months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +247,55 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        self.check_time_col(X)
 
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+        # Sort the data
+        if self.time_col == 'index':
+            X_sorted = X.sort_index()
+        else:
+            X_sorted = X.sort_values(by=self.time_col)
+
+        # Convert to periods
+        time_col_sorted = pd.Series(
+            X_sorted.index if self.time_col == 'index'
+            else X_sorted[self.time_col]
+        ).reset_index(drop=True)
+        time_periods = pd.to_datetime(time_col_sorted).dt.to_period('M')
+        unique_months = time_periods.unique()
+
+        for i in range(len(unique_months) - 1):
+            train_month = unique_months[i]
+            test_month = unique_months[i + 1]
+
+            train_mask = (time_periods == train_month)
+            test_mask = (time_periods == test_month)
+
+            idx_train = X_sorted.index[train_mask]
+            idx_test = X_sorted.index[test_mask]
+
+            yield X.index.get_indexer(idx_train), X.index.get_indexer(idx_test)
+
+
+X = np.array([
+    [1, 0],
+    [1, 1],
+    [1, 2],
+    [0, 0],
+    [-1, 1]
+])
+
+y = np.array([
+    "one",
+    "one",
+    "two",
+    "two",
+    "one"
+])
+
+knn = KNearestNeighbors(n_neighbors=2)
+knn.fit(X, y)
+X_test = np.array([
+    [1, 0],
+    [0, 0]
+])
+knn.predict(X_test)

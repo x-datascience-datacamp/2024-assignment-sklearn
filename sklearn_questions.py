@@ -86,7 +86,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         X, y = check_X_y(X, y)
         check_classification_targets(y)
         self.label_encoder_ = LabelEncoder()
-        self.y_ = self.label_encoder_.fit_transform(y)
+        y = self.label_encoder_.fit_transform(y)
+        check_classification_targets(y)
+        self.y_ = y
         self.classes_ = self.label_encoder_.classes_
         self.X_ = X
         self.n_features_in_ = X.shape[1]
@@ -107,7 +109,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
         X = check_array(X)
-        
 
         # Compute pairwise distances between test samples and training data
         distances = pairwise_distances(X, self.X_)
@@ -125,7 +126,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         ])
         # Decode labels back to their original form
         y_pred = self.label_encoder_.inverse_transform(y_pred_encoded)
-        y_pred = y_pred.reshape(-1)
         return y_pred
 
     def score(self, X, y):

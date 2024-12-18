@@ -54,14 +54,15 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
-
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.multiclass import unique_labels
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +83,17 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = self._validate_data(X, y, accept_sparse=False,
+                                   ensure_2d=True)
+        self.classes_ = unique_labels(y)
+        self.n_features_in_ = X.shape[1]
+
+        check_classification_targets(y)
+
+        self.label_encoder_ = LabelEncoder()
+        self.y_ = self.label_encoder_.fit_transform(y)
+        self.X_ = X
+
         return self
 
     def predict(self, X):
@@ -97,7 +109,22 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)
+        X = self._validate_data(X, accept_sparse=False, reset=False)
+
+        distance = pairwise_distances(X, self.X_)
+        voisin_proche = np.argsort(distance, axis=1)[:, :self.n_neighbors]
+
+        classe_voisin = self.y_[voisin_proche]
+
+        y_pred = []
+        for voisins in classe_voisin:
+            counts = np.bincount(voisins)
+            majority_class = np.argmax(counts)
+            y_pred.append(majority_class)
+
+        y_pred = self.label_encoder_.inverse_transform(y_pred)
+
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +142,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        acc = accuracy_score(y, self.predict(X))
+        print("ACC", acc)
+        return acc
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +184,14 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if self.time_col == 'index':
+            X = X.reset_index()
+        if not pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
+            raise ValueError(f"No datetime type for column '{self.time_col}'.")
+
+        time_column = X[self.time_col]
+        number_of_months = time_column.dt.to_period('M').unique()
+        return len(number_of_months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +213,13 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
+        X_copy = X.reset_index()
+        n_splits = self.get_n_splits(X_copy, y, groups)
+        X_sorted = X_copy.sort_values(by=self.time_col)
+        X_grouped = X_sorted.groupby(pd.Grouper(key=self.time_col, freq="M"))
+        print(X_grouped)
+        idxs = [group.index for _, group in X_grouped]
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+            idx_train = list(idxs[i])
+            idx_test = list(idxs[i + 1])
+            yield (idx_train, idx_test)

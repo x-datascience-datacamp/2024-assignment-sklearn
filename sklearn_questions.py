@@ -64,7 +64,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     """KNearestNeighbors classifier."""
 
-    def __init__(self, n_neighbors=1):
+    def __init__(self, n_neighbors=1): # noqa: D107
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -88,7 +88,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
         self.X_train_ = X
-        self.y_train_ = y.astype(np.int64)
+        self.y_train_ = y
         return self
 
     def predict(self, X):
@@ -106,21 +106,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
         X = check_array(X)
-        if X.shape[1] != self.n_features_in_:
-            raise ValueError(
-                f"X has {X.shape[1]} features, but KNearestNeighbors "
-                f"was trained with {self.n_features_in_} features."
-            )
         distances = pairwise_distances(X, self.X_train_)
-        y_pred = []
-        for dist in distances:
-            nearest_indices = np.argsort(dist)[:self.n_neighbors]
-            values, counts = np.unique(
-                self.y_train_[nearest_indices],
-                return_counts=True
-            )
-            y_pred.append(values[np.argmax(counts)])
-        return np.array(y_pred, dtype=np.int64)
+        nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+        neighbor_labels = self.y_train_[nearest_indices]
+        y_pred = np.array([
+            np.unique(labels, return_counts=True)[0][np.argmax(
+                np.unique(labels, return_counts=True)[1]
+            )]
+            for labels in neighbor_labels
+        ])
+        return y_pred
 
     def score(self, X, y):
         """Calculate the score of the prediction.

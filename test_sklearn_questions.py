@@ -110,8 +110,10 @@ def test_time_split_on_column(end_date, shuffle_data):
     n_splits = 0
     last_time = None
     for train, test in cv.split(X, y):
-
+        
         X_train, X_test = X.iloc[train], X.iloc[test]
+        print(train)
+        print(X_train)
         assert X_train['date'].max() < X_test['date'].min()
         assert X_train['date'].dt.month.nunique() == 1
         assert X_test['date'].dt.month.nunique() == 1

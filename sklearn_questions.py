@@ -52,22 +52,33 @@ import pandas as pd
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
-
+from collections import Counter
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_X_y, check_is_fitted
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.utils.multiclass import unique_labels
+from pandas.api.types import is_datetime64_any_dtype
 
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
-    """KNearestNeighbors classifier."""
 
+    """KNearestNeighbors classifier."""
     def __init__(self, n_neighbors=1):  # noqa: D107
         self.n_neighbors = n_neighbors
 
+    def __sklearn_is_fitted__(self):
+
+        try:
+            if self.exemples_ is not None: 
+                return True
+        except:
+            return False
+
     def fit(self, X, y):
+        
         """Fitting function.
 
          Parameters
@@ -82,9 +93,18 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+
+        X=check_array(X)
+        check_classification_targets(y)
+        X, y = check_X_y(X, y)
+        self.exemples_ = X
+        self.labels_ = y
+        self.classes_ = unique_labels(self.labels_)
+        self.n_features_in_ = self.exemples_.shape[1]   # attribut requis
         return self
 
     def predict(self, X):
+
         """Predict function.
 
         Parameters
@@ -97,10 +117,15 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)
+        X = check_array(X)
+        distance_matrice = pairwise_distances(self.exemples_, X)
+        indices = np.argpartition(distance_matrice, self.n_neighbors, axis=0)[:self.n_neighbors, :]    
+        y_pred = np.array([Counter(self.labels_[indices[:, i]]).most_common(1)[0][0] for i in range(X.shape[0])])
         return y_pred
 
     def score(self, X, y):
+
         """Calculate the score of the prediction.
 
         Parameters
@@ -115,10 +140,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        ypred = self.predict(X)
+        e = ypred == y
+        return e.sum()/e.shape[0]
 
 
 class MonthlySplit(BaseCrossValidator):
+
     """CrossValidator based on monthly split.
 
     Split data based on the given `time_col` (or default to index). Each split
@@ -138,6 +166,7 @@ class MonthlySplit(BaseCrossValidator):
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
+        
         """Return the number of splitting iterations in the cross-validator.
 
         Parameters
@@ -155,11 +184,22 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+
+        if "index" not in X.columns:
+            X = X.reset_index()
+        return X[self.time_col].dt.strftime("%Y-%m").unique().shape[0]-1
+
+    def is_datetime(self, X):
+        if self.time_col == "index":
+            if not is_datetime64_any_dtype(X.index):
+                raise ValueError("invalid datetime format")
+        else : 
+            if not is_datetime64_any_dtype(X[self.time_col]):
+                raise ValueError("invalid datetime format")     
 
     def split(self, X, y, groups=None):
-        """Generate indices to split data into training and test set.
 
+        """Generate indices to split data into training and test set
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
@@ -177,12 +217,19 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
+        self.is_datetime(X)
+        if type(X) is pd.DataFrame: 
+            if (self.time_col == 'index') and ("index" not  in X.columns):     
+                X = X.reset_index() 
+        else : 
+            X = X.reset_index()       
+        periods = np.sort(X[self.time_col].dt.strftime("%Y-%m").unique())
         n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+        n_splits = self.get_n_splits(X, y, groups) 
+        for i in range(n_splits): 
+            m1, m2 = periods[i], periods[i+1]  
+            train = X[X[self.time_col].dt.strftime("%Y-%m") == m1].index
+            test = X[X[self.time_col].dt.strftime("%Y-%m") == m2].index
+            yield X.index.get_indexer(train).tolist(), X.index.get_indexer(test).tolist()
+
+    

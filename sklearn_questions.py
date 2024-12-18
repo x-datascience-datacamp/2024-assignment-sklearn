@@ -240,3 +240,4 @@ class MonthlySplit(BaseCrossValidator):
             idx_test = list(
                 x_df[x_df['month_year'] == months_years[i + 1]].index)
             yield (idx_train, idx_test)
+            

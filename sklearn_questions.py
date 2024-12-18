@@ -183,9 +183,7 @@ class MonthlySplit(BaseCrossValidator):
         self.time_col = time_col
 
     def _get_time_col(self, X):
-        """
-        Extracts the time column from the given DataFrame and validates
-        its datatype.
+        """Extract the time column from DataFrame and validate its datatype.
 
         Parameters
         ----------
@@ -236,7 +234,6 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-
         time_column = self._get_time_col(X)
 
         return (len(time_column.dt.to_period('M').unique()) - 1)
@@ -261,7 +258,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         time_column = self._get_time_col(X)
 
         time_column_month = time_column.dt.to_period('M')

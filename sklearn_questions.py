@@ -60,8 +60,10 @@ from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
+from sklearn.utils.validation import validate_data
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +84,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        X, y = validate_data(self, X, y, reset=True)
+        # X, y = validate_data(X, y)
+        check_classification_targets(y)
+        self.X_ = X
+        self.y_ = y
+        self.classes_ = np.unique(y)
         return self
 
     def predict(self, X):
@@ -97,8 +106,22 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
+        check_is_fitted(self)
+        X = check_array(X)
+        X = validate_data(self, X, reset=False)
+        y = np.zeros(X.shape[0], dtype=self.y_.dtype)
+
+        for i, x_test in enumerate(X):
+
+            distance = pairwise_distances(x_test.reshape(1, -1), self.X_)
+
+            idx = np.argsort(distance, axis=1)[:, :self.n_neighbors]
+
+            neighbors, n = np.unique(self.y_[idx], return_counts=True)
+
+            y[i] = neighbors[np.argmax(n)]
+
+        return y
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -115,7 +138,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +179,17 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if isinstance(X, pd.DataFrame) and self.time_col in X.columns\
+                and X[self.time_col].dtype != 'datetime64[ns]':
+            raise ValueError('datetime64[ns] type is required for the column')
+        if isinstance(X, pd.DataFrame) and 'date' in X.columns:
+            date_min = X['date'].min()
+            date_max = X['date'].max()
+        else:
+            date_min = X.index.min()
+            date_max = X.index.max()
+        return (date_max.year - date_min.year) * 12\
+            + date_max.month - date_min.month
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +211,22 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
+        if isinstance(X, pd.DataFrame) and 'date' in X.columns:
+            X_time_col = X['date']
+        else:
+            X_time_col = X.index
+
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+            # print(X)
+            date_debut_train = X_time_col.min() + pd.DateOffset(months=i)
+            date_fin_train = date_debut_train + pd.DateOffset(months=1)\
+                - pd.DateOffset(days=1)
+            date_debut_test = date_fin_train + pd.DateOffset(days=1)
+            date_fin_test = date_debut_test + pd.DateOffset(months=1)\
+                - pd.DateOffset(days=1)
+            idx_train = np.argwhere((X_time_col >= date_debut_train)
+                                    & (X_time_col <= date_fin_train))[:, 0]
+            idx_test = np.argwhere((X_time_col >= date_debut_test)
+                                   & (X_time_col <= date_fin_test))[:, 0]
+            yield idx_train, idx_test

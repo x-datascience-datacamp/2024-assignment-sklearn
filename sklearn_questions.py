@@ -61,7 +61,113 @@ from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+# class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+#     """KNearestNeighbors classifier."""
+
+#     def __init__(self, n_neighbors=1):  # noqa: D107
+#         self.n_neighbors = n_neighbors
+
+#     def fit(self, X, y):
+#         """Fitting function.
+
+#         Parameters
+#         ----------
+#         X : ndarray, shape (n_samples, n_features)
+#             Data to train the model.
+#         y : ndarray, shape (n_samples,)
+#             Labels associated with the training data.
+
+#         Returns
+#         ----------
+#         self : instance of KNearestNeighbors
+#             The current instance of the classifier
+#         """
+#         # X = check_array(X)
+#         # check_classification_targets(y)
+#         # X, y = check_X_y(X, y)
+#         # self.classes_ = np.unique(y)
+#         # self.n_features_in_ = X.shape[1]
+#         # self.X_ = X
+#         # self.y_ = y
+#         # return self
+#         X, y = self._validate_data(X, y, accept_sparse=True,
+#                                    multi_output=False)
+#         check_classification_targets(y)
+#         self.classes_ = np.unique(y)
+#         self.n_features_in_ = X.shap
+#         self.X_= X
+#         self.y_ = y
+
+#         return self
+
+#     def predict(self, X):
+#         """Predict function.
+
+#         Parameters
+#         ----------
+#         X : ndarray, shape (n_test_samples, n_features)
+#             Data to predict on.
+
+#         Returns
+#         ----------
+#         y : ndarray, shape (n_test_samples,)
+#             Predicted class labels for each test data sample.
+#         """
+#         # check_is_fitted(self)
+#         # X = check_array(X)
+#         # distances = pairwise_distances(X, self.X_)
+#         # if X.shape[1] != self.n_features_in_:
+#         #     raise ValueError(
+#         #         f"X has {X.shape[1]} features, but {self.__class__.__name__} "
+#         #         f"was trained with {self.n_features_in_} features"
+#         #     )
+#         # nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+#         # neighbor_labels = self.y_[nearest_indices]
+#         # y_pred = np.array([
+#         #     np.unique(labels, return_counts=True)[0][np.argmax(
+#         #         np.unique(labels, return_counts=True)[1]
+#         #     )]
+#         #     for labels in neighbor_labels
+#         # ])
+#         # return y_pred
+#         check_is_fitted(self, ['X_', 'y_'])
+#         X = check_array(X)
+#         y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
+#         distances = pairwise_distances(X, self.X_, metric='euclidean')
+#         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+#         nearest_labels = self.y_[nearest_indices]
+#         for i, labels in enumerate(nearest_labels):
+#             unique_labels, counts = np.unique(labels, return_counts=True)
+#             y_pred[i] = unique_labels[np.argmax(counts)]
+
+#         return y_pred
+
+#     def score(self, X, y):
+#         """Calculate the score of the prediction.
+
+#         Parameters
+#         ----------
+#         X : ndarray, shape (n_samples, n_features)
+#             Data to score on.
+#         y : ndarray, shape (n_samples,)
+#             target values.
+
+#         Returns
+#         ----------
+#         score : float
+#             Accuracy of the model computed for the (X, y) pairs.
+#         """
+#         # check_is_fitted(self)
+#         # X = check_array(X)
+#         # return np.mean(self.predict(X) == y)
+#         check_is_fitted(self)
+#         X = self._validate_data(X, accept_sparse=True, reset=False)
+#         y = self._validate_data(y, ensure_2d=False, reset=False)
+#         return np.mean(self.predict(X) == y)
+
+
+
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -70,7 +176,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     def fit(self, X, y):
         """Fitting function.
 
-        Parameters
+         Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
             Data to train the model.
@@ -82,20 +188,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        # X = check_array(X)
-        # check_classification_targets(y)
-        # X, y = check_X_y(X, y)
-        # self.classes_ = np.unique(y)
-        # self.n_features_in_ = X.shape[1]
-        # self.X_ = X
-        # self.y_ = y
-        # return self
         X, y = self._validate_data(X, y, accept_sparse=True,
                                    multi_output=False)
         check_classification_targets(y)
         self.classes_ = np.unique(y)
-        self.n_features_in_ = X.shap
-        self.X_= X
+        self.n_features_in_ = X.shape[1]
+        if len(self.classes_) < 2:
+            raise ValueError("Only one class present in the data.")
+        self.X_ = X
         self.y_ = y
 
         return self
@@ -113,25 +213,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        # check_is_fitted(self)
-        # X = check_array(X)
-        # distances = pairwise_distances(X, self.X_)
-        # if X.shape[1] != self.n_features_in_:
-        #     raise ValueError(
-        #         f"X has {X.shape[1]} features, but {self.__class__.__name__} "
-        #         f"was trained with {self.n_features_in_} features"
-        #     )
-        # nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-        # neighbor_labels = self.y_[nearest_indices]
-        # y_pred = np.array([
-        #     np.unique(labels, return_counts=True)[0][np.argmax(
-        #         np.unique(labels, return_counts=True)[1]
-        #     )]
-        #     for labels in neighbor_labels
-        # ])
-        # return y_pred
         check_is_fitted(self, ['X_', 'y_'])
-        X = check_array(X)
+        X = self._validate_data(X, accept_sparse=True, reset=False)
         y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
         distances = pairwise_distances(X, self.X_, metric='euclidean')
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
@@ -157,93 +240,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        # check_is_fitted(self)
-        # X = check_array(X)
-        # return np.mean(self.predict(X) == y)
         check_is_fitted(self)
         X = self._validate_data(X, accept_sparse=True, reset=False)
         y = self._validate_data(y, ensure_2d=False, reset=False)
         return np.mean(self.predict(X) == y)
-
-
-
-# class KNearestNeighbors(ClassifierMixin, BaseEstimator):
-#     """KNearestNeighbors classifier."""
-
-#     def __init__(self, n_neighbors=1):  # noqa: D107
-#         self.n_neighbors = n_neighbors
-
-#     def fit(self, X, y):
-#         """Fitting function.
-
-#          Parameters
-#         ----------
-#         X : ndarray, shape (n_samples, n_features)
-#             Data to train the model.
-#         y : ndarray, shape (n_samples,)
-#             Labels associated with the training data.
-
-#         Returns
-#         ----------
-#         self : instance of KNearestNeighbors
-#             The current instance of the classifier
-#         """
-#         X, y = self._validate_data(X, y, accept_sparse=True,
-#                                    multi_output=False)
-#         check_classification_targets(y)
-#         self.classes_ = np.unique(y)
-#         self.n_features_in_ = X.shape[1]
-#         if len(self.classes_) < 2:
-#             raise ValueError("Only one class present in the data.")
-#         self.X_train_ = X
-#         self.y_train_ = y
-
-#         return self
-
-#     def predict(self, X):
-#         """Predict function.
-
-#         Parameters
-#         ----------
-#         X : ndarray, shape (n_test_samples, n_features)
-#             Data to predict on.
-
-#         Returns
-#         ----------
-#         y : ndarray, shape (n_test_samples,)
-#             Predicted class labels for each test data sample.
-#         """
-#         check_is_fitted(self, ['X_train_', 'y_train_'])
-#         X = self._validate_data(X, accept_sparse=True, reset=False)
-#         y_pred = np.zeros(X.shape[0], dtype=self.y_train_.dtype)
-#         distances = pairwise_distances(X, self.X_train_, metric='euclidean')
-#         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-#         nearest_labels = self.y_train_[nearest_indices]
-#         for i, labels in enumerate(nearest_labels):
-#             unique_labels, counts = np.unique(labels, return_counts=True)
-#             y_pred[i] = unique_labels[np.argmax(counts)]
-
-#         return y_pred
-
-#     def score(self, X, y):
-#         """Calculate the score of the prediction.
-
-#         Parameters
-#         ----------
-#         X : ndarray, shape (n_samples, n_features)
-#             Data to score on.
-#         y : ndarray, shape (n_samples,)
-#             target values.
-
-#         Returns
-#         ----------
-#         score : float
-#             Accuracy of the model computed for the (X, y) pairs.
-#         """
-#         check_is_fitted(self)
-#         X = self._validate_data(X, accept_sparse=True, reset=False)
-#         y = self._validate_data(y, ensure_2d=False, reset=False)
-#         return np.mean(self.predict(X) == y)
 
 
 class MonthlySplit(BaseCrossValidator):

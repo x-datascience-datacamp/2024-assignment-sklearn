@@ -56,7 +56,6 @@ from sklearn.base import ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_is_fitted
-from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -87,10 +86,11 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         check_classification_targets(y)
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
-        if len(self.classes_) < 2:
-            raise ValueError("There is only one class.")
+        # if len(self.classes_) < 2:
+        # raise ValueError("There is only one class.")
         self.X_ = X
         self.y_ = y
+        self.is_fitted_ = True
         return self
 
     def predict(self, X):
@@ -107,7 +107,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self, ["X_", "y_"])
-        X = check_array(X)
+        X = self._validate_data(X, accept_sparse=False, reset=False)
         y_pred = []
         for x in X:
             dist = pairwise_distances(x.reshape(1, -1), self.X_)
@@ -132,8 +132,9 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        check_is_fitted(self)
-        X = check_array(X)
+        check_is_fitted(self, ['X_', 'y_'])
+        X = self._validate_data(X, accept_sparse=True, reset=False)
+        y = self._validate_data(y, ensure_2d=False, reset=False)
         y_pred = self.predict(X)
         return np.mean(y_pred == y)
 

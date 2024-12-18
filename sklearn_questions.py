@@ -62,35 +62,10 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
-    """KNearestNeighbors classifier.
-
-    Parameters
-    ----------
-    n_neighbors : int, default=1
-        Number of neighbors to use for classification.
-        Should be a positive integer.
-    """
+    """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):
         self.n_neighbors = n_neighbors
-
-    def _validate_params(self):
-        """Validate parameters passed to the estimator.
-
-        Raises
-        ------
-        ValueError
-            If parameters are invalid.
-        """
-        if not isinstance(self.n_neighbors, (int, np.integer)):
-            raise ValueError(
-                f"n_neighbors must be an integer, got {type(self.n_neighbors)}"
-            )
-        if self.n_neighbors < 1:
-            raise ValueError(
-                f"n_neighbors must be greater than zero, \
-                got {self.n_neighbors}"
-            )
 
     def fit(self, X, y):
         """Fitting function.
@@ -107,14 +82,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        self._validate_params()
         X = check_array(X)
         check_classification_targets(y)
-        X, y = check_X_y(X, y, ensure_min_samples=2)
+        X, y = check_X_y(X, y)
         self.classes_ = np.unique(y)
-        self.X_train_ = X
         self.n_features_in_ = X.shape[1]
-        self.y_train_ = y
+        self.X_train_ = X
+        self.y_train_ = y.astype(np.int64)
         return self
 
     def predict(self, X):
@@ -146,7 +120,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
                 return_counts=True
             )
             y_pred.append(values[np.argmax(counts)])
-        return np.array(y_pred)
+        return np.array(y_pred, dtype=np.int64)
 
     def score(self, X, y):
         """Calculate the score of the prediction.

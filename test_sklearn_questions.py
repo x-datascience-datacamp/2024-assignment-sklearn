@@ -123,5 +123,4 @@ def test_time_split_on_column(end_date, shuffle_data):
         n_splits += 1
 
     assert 'idx' not in X.columns
-
     assert n_splits == cv.get_n_splits(X, y)

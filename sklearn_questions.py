@@ -225,6 +225,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
     #     return y_pred
         check_is_fitted(self, ['X_', 'y_'])
+        X = self._validate_data(X, accept_sparse=True, reset=False)
         y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
         distances = pairwise_distances(X, self.X_, metric='euclidean')
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]

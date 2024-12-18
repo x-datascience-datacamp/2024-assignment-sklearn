@@ -91,6 +91,26 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
         return self
 
+    def majority_vote_(self, k_nearest):
+        """Return a majority vote in y.
+
+        Parameters
+        ----------
+        k_nearest: ndarray, shape (n_test_samples, n_neighbors)
+            Indices in y of the k-nearest train samples for each test sample
+
+        Returns
+        ----------
+        y: array, shape(n_test_samples, 1)
+            Predicted class from majority vote
+        """
+        y_pred = []
+        nearest_labels = self.y_[k_nearest]
+        for i in range(nearest_labels.shape[0]):
+            values, counts = np.unique(nearest_labels[i], return_counts=True)
+            y_pred.append(values[np.argmax(counts)])
+        return np.array(y_pred)
+
     def predict(self, X):
         """Predict function.
 
@@ -112,15 +132,10 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
                 "of features as the input array X"
                 )
 
-        y_pred = []
-        for x in X:
-            distances = pairwise_distances(x.reshape(1, -1), self.X_)
-            nearest_indices = np.argsort(distances,
-                                         axis=1)[0][:self.n_neighbors]
-            values, counts = np.unique(self.y_[nearest_indices],
-                                       return_counts=True)
-            y_pred.append(values[np.argmax(counts)])
-        y_pred = np.array(y_pred)
+        distances = pairwise_distances(X, self.X_)
+        k_nearest = np.argpartition(distances,
+                                    self.n_neighbors)[:, :self.n_neighbors]
+        y_pred = self.majority_vote_(k_nearest)
         return y_pred
 
     def score(self, X, y):
@@ -259,3 +274,28 @@ class MonthlySplit(BaseCrossValidator):
             idx_test = X_sorted.index[test_mask]
 
             yield X.index.get_indexer(idx_train), X.index.get_indexer(idx_test)
+
+
+X = np.array([
+    [1, 0],
+    [1, 1],
+    [1, 2],
+    [0, 0],
+    [-1, 1]
+])
+
+y = np.array([
+    "one",
+    "one",
+    "two",
+    "two",
+    "one"
+])
+
+knn = KNearestNeighbors(n_neighbors=2)
+knn.fit(X, y)
+X_test = np.array([
+    [1, 0],
+    [0, 0]
+])
+knn.predict(X_test)

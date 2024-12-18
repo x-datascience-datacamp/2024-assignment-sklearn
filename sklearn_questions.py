@@ -57,7 +57,7 @@ from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_X_y, check_is_fitted
 from sklearn.utils.validation import check_array
-#from sklearn.utils.multiclass import check_classification_targets
+# from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
@@ -82,7 +82,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        self.X_, self.y_ = check_X_y(X, y)  # Checks X and y for consistent length.
+        self.X_, self.y_ = check_X_y(X, y)
 
         return self
 
@@ -185,7 +185,7 @@ class MonthlySplit(BaseCrossValidator):
         self.splits = [first_split]
         for m in range(1, len(months)):
             split = X.loc[(X[self.time_col] > months[m-1]) &
-              (X[self.time_col] <= months[m])].index.to_numpy()
+                (X[self.time_col] <= months[m])].index.to_numpy()
             self.splits.append(split)
 
         return len(months) - 1
@@ -211,7 +211,7 @@ class MonthlySplit(BaseCrossValidator):
             The testing set indices for that split.
         """
 
-        #n_samples = X.shape[0]
+        # n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
         for i in range(n_splits):
             idx_train = self.splits[i]

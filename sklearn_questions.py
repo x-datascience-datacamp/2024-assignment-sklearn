@@ -124,7 +124,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             majority_label = np.bincount(nearest_labels).argmax()
             y_pred.append(majority_label)
 
-        y_pred = np.array(y_pred)
         return self.label_encoder_.inverse_transform(y_pred)
 
     def score(self, X, y):

@@ -232,6 +232,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         for i, labels in enumerate(nearest_labels):
             unique_labels, counts = np.unique(labels, return_counts=True)
             y_pred[i] = unique_labels[np.argmax(counts)]
+        return y_pred
 
     def score(self, X, y):
         """Calculate the score of the prediction.

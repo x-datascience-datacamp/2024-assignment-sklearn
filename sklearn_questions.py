@@ -260,15 +260,18 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        if isinstance(X, pd.Series):
-            dates = X.index if self.time_col == 'index' else X
-        else:
-            dates = X.index if self.time_col == 'index' else X[self.time_col]
-        if not pd.api.types.is_datetime64_any_dtype(dates):
-            raise ValueError(f"Column {self.time_col}\
-                              must be of datetime type")
-        periods = pd.DatetimeIndex(dates).to_period('M').unique()
-        return len(periods) - 1
+        data_df = X.copy()
+        temporal_col = self.time_col
+        if temporal_col == 'index':
+            data_df = data_df.reset_index()
+        if not pd.api.types.is_datetime64_any_dtype(data_df[temporal_col]):
+            raise ValueError(
+                f"Column '{temporal_col}' must contain datetime values"
+            )
+        ordered_data = data_df.sort_values(by=temporal_col)
+        monthly_periods = ordered_data[temporal_col].dt.to_period('M')
+        distinct_months = monthly_periods.unique()
+        return max(0, len(distinct_months) - 1)
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -290,24 +293,16 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-        n_splits = self.get_n_splits(X, y, groups)
-        old_order = list(X.index)
-        if self.time_col != 'index':
-            X = X.sort_values(by=self.time_col)
-        else:
-            X = X.sort_index()
-        new_order = list(X.index)
-        map_new2old = {new_order[i]: old_order.index(new_order[i])
-                       for i in range(len(old_order))}
-        time_data = X.index if self.time_col == 'index' else X[self.time_col]
-        time_data_dti = pd.DatetimeIndex(time_data)
-        new_order = np.array(new_order)
-        for i in range(n_splits):
-            month_train, year_train, month_test, year_test = self.splits_[i]
-            MONTH = time_data_dti.month
-            YEAR = time_data_dti.year
-            train_dates = (MONTH == month_train) & (YEAR == year_train)
-            idx_train = [map_new2old[i] for i in new_order[train_dates]]
-            test_dates = (MONTH == month_test) & (YEAR == year_test)
-            idx_test = [map_new2old[i] for i in new_order[test_dates]]
-            yield (idx_train, idx_test)
+        temporal_data = X.reset_index()
+        total_splits = self.get_n_splits(temporal_data, y, groups)
+        temporal_col = self.time_col
+        sorted_data = temporal_data.sort_values(by=temporal_col)
+        monthly_groups = sorted_data.groupby(
+            pd.Grouper(key=temporal_col, freq="M")
+        )
+        monthly_indices = [month_data.index for _, month_data in monthly_groups]
+        for split_idx in range(total_splits):
+            current_month_indices = list(monthly_indices[split_idx])
+            next_month_indices = list(monthly_indices[split_idx + 1])
+            
+            yield current_month_indices, next_month_indices

@@ -59,10 +59,11 @@ from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
+
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
-    def __init__(self, n_neighbors=1):  # noqa: D107        # initialise l'instance du classifieur avec un nombre de voisins (n_neighbors) par défaut vaut 1
+    def __init__(self, n_neighbors=1):  # noqa: D107
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -137,7 +138,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y_pred = self.predict(X)
         accuracy = np.mean(y_pred == y)
         return accuracy
-
 
 
 class MonthlySplit(BaseCrossValidator):

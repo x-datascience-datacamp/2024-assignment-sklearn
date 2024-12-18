@@ -65,11 +65,13 @@ from collections import Counter
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
+
     def __init__(self, n_neighbors=1):  # noqa: D107
         self.n_neighbors = n_neighbors
 
     def __sklearn_is_fitted__(self):
-        """Method to check if the
+        """Checks if fitted.
+
         Returns
         ----------
         self.fitted : bool, flag informing wether the model was fitted

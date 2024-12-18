@@ -61,7 +61,7 @@ from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -81,12 +81,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         ----------
         self : instance of KNearestNeighbors
             The current instance of the classifier
-        """ 
+        """
         X, y = check_X_y(X, y)
         check_classification_targets(y)
         self.X_ = X
         self.y_ = y
-
+        self.classes_ = np.unique(y)
+        self.n_features_in_ = X.shape[1]
         return self
 
     def predict(self, X):
@@ -104,9 +105,19 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
         X = check_array(X)
-        closest = np.argmin(pairwise_distances(X, self.X_), axis=1)
+        y = np.zeros(X.shape[0], dtype=self.y_.dtype)
 
-        return self.y_[closest]
+        for i, x_test in enumerate(X):
+
+            distance = pairwise_distances(x_test.reshape(1, -1), self.X_)
+
+            idx = np.argsort(distance, axis=1)[:, :self.n_neighbors]
+
+            neighbors, n = np.unique(self.y_[idx], return_counts=True)
+
+            y[i] = neighbors[np.argmax(n)]
+
+        return y
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -164,10 +175,17 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        date_min= X[self.time_col].min()
-        date_max= X[self.time_col].max()
-        return (date_max.year - date_min.year) * 12 + date_max.month - date_min.month
-
+        if isinstance(X, pd.DataFrame) and self.time_col in X.columns\
+                and X[self.time_col].dtype != 'datetime64[ns]':
+            raise ValueError('datetime64[ns] type is required for the column')
+        if isinstance(X, pd.DataFrame) and 'date' in X.columns:
+            date_min = X['date'].min()
+            date_max = X['date'].max()
+        else:
+            date_min = X.index.min()
+            date_max = X.index.max()
+        return (date_max.year - date_min.year) * 12\
+            + date_max.month - date_min.month
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -189,20 +207,22 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
+        if isinstance(X, pd.DataFrame) and 'date' in X.columns:
+            X_time_col = X['date']
+        else:
+            X_time_col = X.index
+
         for i in range(n_splits):
-            date_debut_train = X[self.time_col].min() + pd.DateOffset(months=i)
-            date_fin_train = date_debut_train + pd.DateOffset(months=1) - pd.DateOffset(days=1)
+            # print(X)
+            date_debut_train = X_time_col.min() + pd.DateOffset(months=i)
+            date_fin_train = date_debut_train + pd.DateOffset(months=1)\
+                - pd.DateOffset(days=1)
             date_debut_test = date_fin_train + pd.DateOffset(days=1)
-            date_fin_test = date_debut_test + pd.DateOffset(months=1) - pd.DateOffset(days=1)
-            print(X)
-            #get positions of X[(X[self.time_col] >= date_debut_train) & (X[self.time_col] <= date_fin_train)] in the X array
-            idx_train = np.argwhere((X[self.time_col] >= date_debut_train) & (X[self.time_col] <= date_fin_train)==True).flatten()
-            idx_test =  np.argwhere((X[self.time_col] >= date_debut_test) & (X[self.time_col] <= date_fin_test)==True).flatten()
-
-            print(idx_train)
-            print(X[(X[self.time_col] >= date_debut_train) & (X[self.time_col] <= date_fin_train)][self.time_col])
-            yield idx_train, idx_test    
-
+            date_fin_test = date_debut_test + pd.DateOffset(months=1)\
+                - pd.DateOffset(days=1)
+            idx_train = np.argwhere((X_time_col >= date_debut_train)
+                                    & (X_time_col <= date_fin_train))[:, 0]
+            idx_test = np.argwhere((X_time_col >= date_debut_test)
+                                   & (X_time_col <= date_fin_test))[:, 0]
+            yield idx_train, idx_test

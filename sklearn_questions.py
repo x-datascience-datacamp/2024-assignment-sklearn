@@ -108,9 +108,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y_pred = np.zeros(X.shape[0])
         for i in range(X.shape[0]):
             best_indice = np.argsort(distances[i])[0]
-            y_pred[i] = self.y_[best_indice].astype(int)
+            y_pred[i] = self.y_[best_indice]
 
-        return y_pred
+        return y_pred.astype(int)
 
     def score(self, X, y):
         """Calculate the score of the prediction.

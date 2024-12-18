@@ -64,7 +64,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     """KNearestNeighbors classifier."""
 
-    def __init__(self, n_neighbors=1): # noqa: D107
+    def __init__(self, n_neighbors=1):  # noqa: D107
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -87,8 +87,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         X, y = check_X_y(X, y)
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
-        self.X_train_ = X
-        self.y_train_ = y
+        self.X_ = X
+        self.y_ = y
         return self
 
     def predict(self, X):
@@ -106,9 +106,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
         X = check_array(X)
-        distances = pairwise_distances(X, self.X_train_)
+        distances = pairwise_distances(X, self.X_)
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-        neighbor_labels = self.y_train_[nearest_indices]
+        neighbor_labels = self.y_[nearest_indices]
         y_pred = np.array([
             np.unique(labels, return_counts=True)[0][np.argmax(
                 np.unique(labels, return_counts=True)[1]
@@ -134,9 +134,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
         X = check_array(X)
-        y = np.asarray(y)
-        if X.shape[0] != y.shape[0]:
-            raise ValueError("X and y have different numbers of samples")
         y_pred = self.predict(X)
         return np.mean(y_pred == y)
 

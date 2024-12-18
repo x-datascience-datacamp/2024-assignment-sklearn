@@ -48,19 +48,14 @@ from sklearn.metrics.pairwise import pairwise_distances
 to compute distances between 2 sets of samples.
 """
 import numpy as np
-import pandas as pd
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
-from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.utils.validation import validate_data, check_is_fitted
-from sklearn.utils.multiclass import unique_labels
 from collections import Counter
 
 
@@ -85,7 +80,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        
         X, y = validate_data(
             self,
             X,
@@ -120,25 +114,30 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         """
         check_is_fitted(self)
         X = validate_data(self, X, accept_sparse=True, reset=False)
-        
+
         y_pred = np.empty(shape=0, dtype=np.int64)
-    
+
         for x_pred in X:
             k = self.n_neighbors
             arr_idx_nearest = np.empty(shape=0, dtype=np.int64)
             while k > 0:
                 idx_nearest = None
                 for (i, x) in enumerate(self.X_):
-                    if i in arr_idx_nearest: continue
-                    if idx_nearest is None: idx_nearest = i; continue
-                    elif np.linalg.norm(x - x_pred) < np.linalg.norm(self.X_[idx_nearest] - x_pred):
+                    if i in arr_idx_nearest:
+                        continue
+                    if idx_nearest is None:
                         idx_nearest = i
-                
-                if not idx_nearest is None:
+                        continue
+                    d_x = np.linalg.norm(x - x_pred)
+                    d_nearest = np.linalg.norm(self.X_[idx_nearest] - x_pred)
+                    if d_x < d_nearest:
+                        idx_nearest = i
+
+                if idx_nearest is not None:
                     arr_idx_nearest = np.append(arr_idx_nearest, idx_nearest)
-                
+
                 k -= 1
-            
+
             y_all_pred = self.y_[arr_idx_nearest]
             most_common = Counter(y_all_pred).most_common(1)[0][0]
             y_pred = np.append(y_pred, most_common)
@@ -164,27 +163,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         return (y == y_pred).sum()/y.size
 
 
-KNN = KNearestNeighbors(3)
-X = np.array([
-    [0, 0, 1],
-    [0, 0, 3],
-    [-5, 1, 0],
-    [-6, 2, 0]
-])
-y = np.array([0, 0, 1, 1])
-X_pred = np.array([
-    [0, 2, 2],
-    [1, 0, 2],
-    [0, 0, 2],
-    [-8, -1, 2],
-    [-5, 2, 2]
-])
-y_real = np.array([0, 0, 1, 1, 1])
-
-KNN.fit(X, y)
-#print(KNN.predict(X_pred))
-#print(KNN.score(X_pred, y_real))
-
 class MonthlySplit(BaseCrossValidator):
     """CrossValidator based on monthly split.
 
@@ -206,10 +184,10 @@ class MonthlySplit(BaseCrossValidator):
 
     def _get_time_col(self, X):
         time_col = X.reset_index()[self.time_col]
-        
+
         if not np.issubdtype(time_col.dtype, np.datetime64):
             raise ValueError('Error with datetime column or index.')
-        
+
         return time_col
 
     def get_n_splits(self, X, y=None, groups=None):
@@ -232,9 +210,6 @@ class MonthlySplit(BaseCrossValidator):
         """
 
         time_column = self._get_time_col(X)
-
-        #if not np.issubdtype(time_column.dtype, np.datetime64):
-        #    raise ValueError
 
         return (len(time_column.dt.to_period('M').unique()) - 1)
 
@@ -264,33 +239,14 @@ class MonthlySplit(BaseCrossValidator):
         time_column_month = time_column.dt.to_period('M')
         cat = sorted(time_column_month.unique())
         n_splits = self.get_n_splits(X, y, groups)
-        
+
         for i in range(0, n_splits):
             cat_train = cat[i]
             cat_test = cat[i + 1]
 
-            idx_train = time_column_month[time_column_month == cat_train].index.to_list()
-            idx_test = time_column_month[time_column_month == cat_test].index.to_list()
-   
+            idx_train = time_column_month[time_column_month == cat_train].index
+            idx_test = time_column_month[time_column_month == cat_test].index
+
             yield (
-                idx_train, idx_test
+                idx_train.to_list(), idx_test.to_list()
             )
-
-from sklearn.utils import shuffle
-
-date = pd.date_range(
-    start='2020-01-01 00:00', end='2022-12-31', freq='D'
-)
-n_samples = len(date)
-X = pd.DataFrame({'val': range(n_samples), 'date': date})
-y = pd.DataFrame(
-    np.array([i % 2 for i in range(n_samples)])
-)
-
-X, y = shuffle(X, y, random_state=0)
-
-cv = MonthlySplit('date')
-print(cv.get_n_splits(X, y))
-train, test = next(cv.split(X, y))
-X_train, X_test = X.iloc[train], X.iloc[test]
-print(X_train['date'].max(), X_test['date'].min())

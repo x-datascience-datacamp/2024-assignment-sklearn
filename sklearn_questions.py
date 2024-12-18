@@ -107,14 +107,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-        X = check_array(X)
-        y_pred = []
-        for x in X:
-            dis = pairwise_distances(x.reshape(1, -1), self.X_)
-            idx = np.argsort(dis, axis=1)[0][:self.n_neighbors]
-            keys, counts = np.unique(self.y_[idx], return_counts=True)
-            y_pred.append(keys[np.argmax(counts)])
-        y_pred = np.array(y_pred)
+        X = self._validate_data(X, accept_sparse=True, reset=False)
+        y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
+        dist = pairwise_distances(X, self.X_, metric='euclidean')
+        indx = np.argsort(dist, axis=1)[:, :self.n_neighbors]
+        labels = self.y_[indx]
+        for i, labels in enumerate(labels):
+            keys, counts = np.unique(labels, return_counts=True)
+            y_pred[i] = keys[np.argmax(counts)]
         return y_pred
 
     def score(self, X, y):

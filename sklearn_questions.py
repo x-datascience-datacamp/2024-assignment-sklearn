@@ -58,7 +58,6 @@ from sklearn.model_selection import BaseCrossValidator
 from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
-from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics.pairwise import pairwise_distances
 
 
@@ -83,9 +82,13 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = self._validate_data(X, y, accept_sparse=True)
+        X, y = self._validate_data(X, y, accept_sparse=True,
+                                   multi_output=False)
         check_classification_targets(y)
-        self.classes_ = unique_labels(y)
+        self.classes_ = np.unique(y)
+        self.n_features_in_ = X.shape[1]
+        if len(self.classes_) < 2:
+            raise ValueError("There is only one class.")
         self.X_ = X
         self.y_ = y
         return self

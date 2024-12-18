@@ -185,7 +185,6 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-
         if (
             isinstance(X, pd.DataFrame)
             and self.time_col in X.columns

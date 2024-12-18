@@ -180,19 +180,6 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        
-        # if not isinstance(X, type(pd.DataFrame())):     # if X is not a dataframe
-        #     x_df = pd.DataFrame({'date': X.index, 'val': X.values})
-        #     x_df['date'] = pd.to_datetime(x_df['date'])
-        # elif self.time_col == 'index' and 'date' not in X.columns[0]:
-        #     x_df = X.reset_index().copy()
-        #     x_df = x_df.rename(columns={'index': 'date'}, inplace=False)
-        # else:
-        #     x_df = X.copy()
-        #     if 'date' not in x_df.columns[0]:
-        #         x_df = x_df.rename({self.time_col: 'date'})
-        # month = pd.to_datetime(x_df['date']).dt.strftime('%b-%Y')
-        # return len(set(month)) - 1        # the number of splits is the number of unique months minus 1
         X_copy = X.copy()
         if self.time_col == 'index':
             X_copy = X_copy.reset_index()
@@ -222,7 +209,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         # Ensure the time column is in datetime format
         X_copy = X.reset_index()
         n_splits = self.get_n_splits(X_copy, y, groups)

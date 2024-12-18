@@ -175,7 +175,19 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        X = X.reset_index(names=['index'])
+        X = X.sort_values(by=self.time_col)
+
+        grouper = pd.Grouper(key=self.time_col, freq='ME')
+        months = list(X.groupby(grouper).groups.keys())
+
+        first_split = X.loc[X[self.time_col] <= months[0]].index.to_numpy()
+        self.splits = [first_split]
+        for m in range(1, len(months)):
+            split = X.loc[(X[self.time_col] > months[m-1]) & (X[self.time_col] <= months[m])].index.to_numpy()
+            self.splits.append(split)
+
+        return len(months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -201,8 +213,8 @@ class MonthlySplit(BaseCrossValidator):
         n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
+            idx_train = self.splits[i]
+            idx_test = self.splits[i+1]
             yield (
                 idx_train, idx_test
             )

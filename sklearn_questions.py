@@ -91,19 +91,24 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         """
         # Check that X and y have correct shape, set n_features_in_, etc.
         X, y = validate_data(self, X, y)
+
         # Store the classes seen during fit
         self.classes_ = unique_labels(y)
-
+        self._idx2classes = {
+            classe: idx for idx, classe in enumerate(self.classes_)
+        }
+        self._classes2idx = {
+            idx: classe for idx, classe in enumerate(self.classes_)
+        }
         self.X_ = X
-        self.y_ = y
-        # dist_X = pairwise_distances(X)
-        # nearest_neighbors_idx = np.argsort(dist_X, axis=1)[
-        #     :, : self.n_neighbors
-        # ]
-        # nearest_neighbors_labels = y[nearest_neighbors_idx]
-        # mode_label, _ = mode(nearest_neighbors_labels, axis=-1)
-        # self._y = mode_label  # The predictions on the training set
-        # Return the classifier
+        self.y_ = np.array([self._classes2idx.get(label, 0) for label in y])
+
+        # Handle the case where only one class is present
+        if len(self.classes_) == 1:
+            self.constant_prediction_ = self.classes_[0]
+        else:
+            self.constant_prediction_ = None
+
         return self
 
     def predict(self, X):
@@ -124,16 +129,26 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         # Input validation
         X = validate_data(self, X, reset=False)
 
+        # If only one class was present during fit, return that class
+        if self.constant_prediction_ is not None:
+            return np.full(X.shape[0], self.constant_prediction_)
+
         y_pred = np.zeros(X.shape[0])
-        # classes_ = self.classes_
-        # _y = self._y
+        classes_ = self.classes_
         dist_X_2_train = euclidean_distances(X, self.X_)
         nearest_neighbors_idx = np.argsort(dist_X_2_train, axis=-1)[
             :, : self.n_neighbors
         ]
-        nearest_neighbors_pred_labels = self.y_[nearest_neighbors_idx]
-        mode_label, _ = mode(nearest_neighbors_pred_labels, axis=-1)
-        y_pred = mode_label
+        nearest_neighbors_pred_idx = self.y_[nearest_neighbors_idx]
+
+        y_pred = np.empty(X.shape[0])
+        for k, neighbors in enumerate(nearest_neighbors_pred_idx):
+            sorted_neighbors, idx, counts = np.unique(
+                neighbors, return_index=True, return_counts=True
+            )
+            mode_label = sorted_neighbors[np.argmax(counts)]
+            y_pred[k] = self._idx2classes.get(mode_label, 0)
+
         return y_pred
 
     def score(self, X, y):

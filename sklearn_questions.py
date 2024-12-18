@@ -199,7 +199,7 @@ class MonthlySplit(BaseCrossValidator):
         Yields
         ------
         idx_train : ndarray
-            The training set indices for that split.
+            The training indices for that split.
         idx_test : ndarray
             The testing set indices for that split.
         """
@@ -215,7 +215,7 @@ class MonthlySplit(BaseCrossValidator):
             idx_train = np.where(time_series.to_period("M") == train_month)[0]
             idx_test = np.where(time_series.to_period("M") == test_month)[0]
 
-            # Sort by actual time to ensure correct order
+            # Sort by actual time to ensure order
             idx_train = idx_train[np.argsort(time_series[idx_train])]
             idx_test = idx_test[np.argsort(time_series[idx_test])]
 

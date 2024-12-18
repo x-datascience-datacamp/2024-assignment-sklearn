@@ -11,7 +11,7 @@ Detailed instructions for question 1:
 The nearest neighbor classifier predicts for a point X_i the target y_k of
 the training sample X_k which is the closest to X_i. We measure proximity with
 the Euclidean distance. The model will be evaluated with the accuracy (average
-number of samples corectly classified). You need to implement the `fit`,
+number of samples correctly classified). You need to implement the `fit`,
 `predict` and `score` methods for this class. The code you write should pass
 the test we implemented. You can run the tests by calling at the root of the
 repo `pytest test_sklearn_questions.py`. Note that to be fully valid, a
@@ -56,16 +56,21 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
-from sklearn.utils.multiclass import check_classification_targets
-from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.utils.validation import validate_data, check_is_fitted
+from sklearn.utils.multiclass import unique_labels
+from sklearn.metrics import euclidean_distances, accuracy_score
+
+# from sklearn.utils.multiclass import check_classification_targets
+# from sklearn.metrics.pairwise import pairwise_distances
 from pandas.api.types import is_datetime64_any_dtype
 
+from scipy.stats import mode
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
+    # https://github.com/scikit-learn/scikit-learn/blob/15eb9f30c77ec8166a0135ca14b8de7fdfe15b91/sklearn/neighbors/_classification.py#L40
     def __init__(self, n_neighbors=1):  # noqa: D107
         self.n_neighbors = n_neighbors
 
@@ -84,6 +89,21 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        # Check that X and y have correct shape, set n_features_in_, etc.
+        X, y = validate_data(self, X, y)
+        # Store the classes seen during fit
+        self.classes_ = unique_labels(y)
+
+        self.X_ = X
+        self.y_ = y
+        # dist_X = pairwise_distances(X)
+        # nearest_neighbors_idx = np.argsort(dist_X, axis=1)[
+        #     :, : self.n_neighbors
+        # ]
+        # nearest_neighbors_labels = y[nearest_neighbors_idx]
+        # mode_label, _ = mode(nearest_neighbors_labels, axis=-1)
+        # self._y = mode_label  # The predictions on the training set
+        # Return the classifier
         return self
 
     def predict(self, X):
@@ -99,11 +119,30 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
+        # Check if fit has been called
+        check_is_fitted(self)
+        # Input validation
+        X = validate_data(self, X, reset=False)
+
         y_pred = np.zeros(X.shape[0])
+        # classes_ = self.classes_
+        # _y = self._y
+        dist_X_2_train = euclidean_distances(X, self.X_)
+        nearest_neighbors_idx = np.argsort(dist_X_2_train, axis=-1)[
+            :, : self.n_neighbors
+        ]
+        nearest_neighbors_pred_labels = self.y_[nearest_neighbors_idx]
+        mode_label, _ = mode(nearest_neighbors_pred_labels, axis=-1)
+        y_pred = mode_label
         return y_pred
 
     def score(self, X, y):
         """Calculate the score of the prediction.
+
+        Return the mean accuracy on the given test data and labels.
+        In multi-label classification, this is the subset accuracy
+        which is a harsh metric since you require for each sample that
+        each label set be correctly predicted.
 
         Parameters
         ----------
@@ -117,7 +156,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.0
+        return accuracy_score(y, self.predict(X))
 
 
 class MonthlySplit(BaseCrossValidator):

@@ -54,12 +54,12 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import BaseCrossValidator
-from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import check_is_fitted, validate_data
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from pandas.api.types import is_datetime64_any_dtype
-
+from collections import Counter
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     """KNearestNeighbors classifier."""
@@ -82,15 +82,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = check_X_y(X, y, ensure_2d=True, allow_nd=False)
+        X, y = validate_data(self, X, y, ensure_2d=True, multi_output=False)
         check_classification_targets(y)
 
-        self.label_encoder_ = LabelEncoder()
-        self.y_ = self.label_encoder_.fit_transform(y)
         self.X_ = X
-        self.classes_ = self.label_encoder_.classes_
-
-        self.n_features_in_ = X.shape[1]
+        self.y_ = y
+        self.classes_ = np.unique(y)
         return self
 
     def predict(self, X):
@@ -108,12 +105,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
 
-        X = check_array(X, ensure_2d=True, accept_sparse=False)
-        if X.shape[1] != self.n_features_in_:
-            raise ValueError(
-                f"X has {X.shape[1]} features, but this estimator expects "
-                f"{self.n_features_in_} features as input."
-            )
+        X = validate_data(self, X, ensure_2d=True, reset=False)
 
         distances = pairwise_distances(X, self.X_)
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
@@ -121,10 +113,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y_pred = []
         for indices in nearest_indices:
             nearest_labels = self.y_[indices]
-            majority_label = np.bincount(nearest_labels).argmax()
+            majority_label = Counter(nearest_labels).most_common(1)[0][0]
             y_pred.append(majority_label)
 
-        return self.label_encoder_.inverse_transform(y_pred)
+        return np.array(y_pred)
 
     def score(self, X, y):
         """Calculate the score of the prediction.

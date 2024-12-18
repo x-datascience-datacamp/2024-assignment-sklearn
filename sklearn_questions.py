@@ -55,7 +55,7 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.multiclass import unique_labels
@@ -85,12 +85,9 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         """
         X, y = self._validate_data(X, y, accept_sparse=True)
         check_classification_targets(y)
-        self.n_features_in_ = X.shape[1]
         self.classes_ = unique_labels(y)
-        if len(self.classes_) < 2:
-            raise ValueError("There is only one class.")
-        self.X_, self.y_ = X, y
-
+        self.X_ = X
+        self.y_ = y
         return self
 
     def predict(self, X):
@@ -106,7 +103,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self)
+        check_is_fitted(self, ["X_", "y_"])
         X = check_array(X)
         y_pred = []
         for x in X:

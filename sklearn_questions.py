@@ -54,14 +54,12 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
-
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -70,7 +68,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     def fit(self, X, y):
         """Fitting function.
 
-         Parameters
+        Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
             Data to train the model.
@@ -84,13 +82,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         X, y = self._validate_data(X, y, accept_sparse=True,
                                    multi_output=False)
-        # Ensure that y is valid for classification tasks
         check_classification_targets(y)
+        self._X_train = X
+        self._y_train = y
         self.classes_ = np.unique(y)
-        self.X_ = X
-        self.y_ = y
-        # Set the n_features_in_ attribute
         self.n_features_in_ = X.shape[1]
+
         return self
 
     def predict(self, X):
@@ -104,7 +101,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         Returns
         ----------
         y : ndarray, shape (n_test_samples,)
-            Predicted class labels for each test data sample.
+            Predicted labels.
         """
         check_is_fitted(self, ['_X_train', '_y_train'])
         X = self._validate_data(X, accept_sparse=True, reset=False)
@@ -126,7 +123,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         X : ndarray, shape (n_samples, n_features)
             Data to score on.
         y : ndarray, shape (n_samples,)
-            target values.
+            Target values.
 
         Returns
         ----------
@@ -140,7 +137,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y_pred = self.predict(X)
 
         return np.mean(y_pred == y)
-
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -193,7 +189,7 @@ class MonthlySplit(BaseCrossValidator):
         month = pd.to_datetime(x_df['date']).dt.strftime('%b-%Y')
         return len(set(month)) - 1
 
-    def split(self, X, y, groups=None):
+    def split(self, X, y=None, groups=None):
         """Generate indices to split data into training and test set.
 
         Parameters
@@ -213,7 +209,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         if self.time_col != 'index':
             if not isinstance(X[self.time_col].iloc[0],
                               type(pd.Timestamp('now'))):

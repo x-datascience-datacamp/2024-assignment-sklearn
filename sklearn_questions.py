@@ -59,7 +59,7 @@ from sklearn.utils.validation import check_is_fitted
 # from sklearn.utils.validation import check_X_y, check_array
 from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import unique_labels
-# from sklearn.utils.multiclass import check_classification_targets
+from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
@@ -84,8 +84,15 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        self.X_, self.y_ = validate_data(self, X, y)
-        self.classes_ = unique_labels(y)
+        self.X_, y = validate_data(self, X, y)
+        check_classification_targets(y)
+        self.label_encoder_ = LabelEncoder()
+        self.y_ = self.label_encoder_.fit_transform(y)
+        self.classes_ = self.label_encoder_.classes_
+
+        self.single_class_ = (len(self.classes_) == 1)
+        if self.single_class_:
+            self.constant_class_ = self.classes_[0]
 
         return self
 
@@ -106,15 +113,18 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
         X = validate_data(self, X, reset=False)
 
+        if self.single_class_:
+            return np.full(X.shape[0], self.constant_class_)
+
         distances = pairwise_distances(X, self.X_, metric='euclidean')
 
-        y_pred = np.zeros(X.shape[0])
+        y_pred = np.zeros(X.shape[0], dtype=int)
         for i in range(X.shape[0]):
             best_indices = np.argsort(distances[i])[:self.n_neighbors]
             voters = self.y_[best_indices]
             y_pred[i] = np.argmax(np.bincount(voters))
 
-        return y_pred.astype(int)
+        return y_pred
 
     def score(self, X, y):
         """Calculate the score of the prediction.

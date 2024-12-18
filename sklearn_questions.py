@@ -60,6 +60,8 @@ from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
+from sklearn.utils.validation import validate_data
+
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
@@ -83,11 +85,12 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             The current instance of the classifier
         """
         X, y = check_X_y(X, y)
+        X, y = validate_data(self, X, y, reset=True)
+        # X, y = validate_data(X, y)
         check_classification_targets(y)
         self.X_ = X
         self.y_ = y
         self.classes_ = np.unique(y)
-        self.n_features_in_ = X.shape[1]
         return self
 
     def predict(self, X):
@@ -105,6 +108,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         """
         check_is_fitted(self)
         X = check_array(X)
+        X = validate_data(self, X, reset=False)
         y = np.zeros(X.shape[0], dtype=self.y_.dtype)
 
         for i, x_test in enumerate(X):

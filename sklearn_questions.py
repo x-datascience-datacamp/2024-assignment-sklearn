@@ -106,7 +106,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self)
+        check_is_fitted(self, ['X_', 'y_'])
         X = self._validate_data(X, accept_sparse=True, reset=False)
         y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
         dist = pairwise_distances(X, self.X_, metric='euclidean')

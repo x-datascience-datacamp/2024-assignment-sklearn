@@ -11,15 +11,15 @@ Detailed instructions for question 1:
 The nearest neighbor classifier predicts for a point X_i the target y_k of
 the training sample X_k which is the closest to X_i. We measure proximity with
 the Euclidean distance. The model will be evaluated with the accuracy (average
-number of samples corectly classified). You need to implement the `fit`,
-`predict` and `score` methods for this class. The code you write should pass
+number of samples corectly classified). You need to implement the fit,
+predict and score methods for this class. The code you write should pass
 the test we implemented. You can run the tests by calling at the root of the
-repo `pytest test_sklearn_questions.py`. Note that to be fully valid, a
-scikit-learn estimator needs to check that the input given to `fit` and
-`predict` are correct using the `check_*` functions imported in the file.
+repo pytest test_sklearn_questions.py. Note that to be fully valid, a
+scikit-learn estimator needs to check that the input given to fit and
+predict are correct using the check_* functions imported in the file.
 You can find more information on how they should be used in the following doc:
 https://scikit-learn.org/stable/developers/develop.html#rolling-your-own-estimator.
-Make sure to use them to pass `test_nearest_neighbor_check_estimator`.
+Make sure to use them to pass test_nearest_neighbor_check_estimator.
 
 
 Detailed instructions for question 2:
@@ -32,11 +32,11 @@ will allow to learn on november data and predict on december data, the
 second split to learn december and predict on january etc.
 
 We also ask you to respect the pep8 convention: https://pep8.org. This will be
-enforced with `flake8`. You can check that there is no flake8 errors by
-calling `flake8` at the root of the repo.
+enforced with flake8. You can check that there is no flake8 errors by
+calling flake8 at the root of the repo.
 
 Finally, you need to write docstrings for the methods you code and for the
-class. The docstring will be checked using `pydocstyle` that you can also
+class. The docstring will be checked using pydocstyle that you can also
 call at the root of the repo.
 
 Hints
@@ -56,12 +56,12 @@ from sklearn.base import ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +82,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+        self.classes_ = np.unique(y)
+        self.n_features_in_ = X.shape[1]
+        self.X_, self.y_ = X, y
         return self
 
     def predict(self, X):
@@ -97,7 +102,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)
+        X = validate_data(self, X, ensure_2d=True, dtype=None, reset=False)
+        y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
+        for i, x_test in enumerate(X):
+            distances = pairwise_distances(x_test.reshape(1, -1), self.X_)
+            indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+            unique, counts = np.unique(self.y_[indices], return_counts=True)
+            y_pred[i] = unique[np.argmax(counts)]
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +127,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        return np.mean(self.predict(X) == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +167,15 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if self.time_col == 'index':
+            time_column = pd.Series(X.index)
+        else:
+            time_column = X[self.time_col]
+
+        if not np.issubdtype(time_column.dtype, np.datetime64):
+            raise ValueError("The time_col must be of datetime type.")
+
+        return len(time_column.dt.to_period('M').unique()) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +197,21 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        if self.time_col == 'index':
+            time_column = pd.Series(X.index)
+        else:
+            time_column = X[self.time_col]
 
-        n_samples = X.shape[0]
+        if not np.issubdtype(time_column.dtype, np.datetime64):
+            raise ValueError("The time_col must be of datetime type.")
+
+        monthly_periods = time_column.dt.to_period('M')
+        unique_months = monthly_periods.unique()
+        unique_months = sorted(unique_months)
         n_splits = self.get_n_splits(X, y, groups)
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
+            idx_train = np.where(monthly_periods == unique_months[i])[0]
+            idx_test = np.where(monthly_periods == unique_months[i + 1])[0]
             yield (
                 idx_train, idx_test
             )

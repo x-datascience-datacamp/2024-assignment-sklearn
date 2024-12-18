@@ -175,7 +175,7 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        X = X.reset_index(names=['index'])
+        X = X.reset_index()
         X = X.sort_values(by=self.time_col)
 
         grouper = pd.Grouper(key=self.time_col, freq='ME')

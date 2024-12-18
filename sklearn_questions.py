@@ -54,14 +54,13 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import BaseCrossValidator
-from sklearn.utils.validation import check_is_fitted, validate_data
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import validate_data, check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from pandas.api.types import is_datetime64_any_dtype
-from collections import Counter
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -81,13 +80,29 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         ----------
         self : instance of KNearestNeighbors
             The current instance of the classifier
-        """
-        X, y = validate_data(self, X, y, ensure_2d=True, multi_output=False)
+            """
+        X, y = validate_data(
+            self,
+            X,
+            y,
+            ensure_2d=True,
+            dtype="numeric",
+            ensure_all_finite=True,
+        )
         check_classification_targets(y)
 
+        self.label_encoder_ = LabelEncoder()
+        self.y_ = self.label_encoder_.fit_transform(y)  # Encodage des labels
         self.X_ = X
-        self.y_ = y
-        self.classes_ = np.unique(y)
+        self.classes_ = self.label_encoder_.classes_  # Sauvegarde des classes originales
+        self.n_features_in_ = X.shape[1]
+
+        # Vérifier si une seule classe est présente
+        if len(self.classes_) == 1:
+            self._is_single_class_ = True
+        else:
+            self._is_single_class_ = False
+
         return self
 
     def predict(self, X):
@@ -105,7 +120,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
 
-        X = validate_data(self, X, ensure_2d=True, reset=False)
+        X = validate_data(self, X, ensure_2d=True, reset=False, dtype="numeric")
+
+        if self._is_single_class_:
+            return np.full(X.shape[0], self.classes_[0])
 
         distances = pairwise_distances(X, self.X_)
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
@@ -113,10 +131,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y_pred = []
         for indices in nearest_indices:
             nearest_labels = self.y_[indices]
-            majority_label = Counter(nearest_labels).most_common(1)[0][0]
+            majority_label = np.bincount(nearest_labels).argmax()
             y_pred.append(majority_label)
 
-        return np.array(y_pred)
+        return self.label_encoder_.inverse_transform(y_pred)
 
     def score(self, X, y):
         """Calculate the score of the prediction.

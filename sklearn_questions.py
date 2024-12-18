@@ -231,7 +231,6 @@ class MonthlySplit(BaseCrossValidator):
                 x_df = x_df.rename(columns={self.time_col: 'date'}, inplace=False)
         n_splits = self.get_n_splits(x_df, y, groups)
         x_df['month_year'] = pd.to_datetime(x_df['date']).dt.strftime('%b-%Y')
-        # Spécifiez le format explicitement pour éviter les avertissements
         months_years = np.unique(np.sort(pd.to_datetime(x_df['month_year'], format='%b-%Y')))
         x_df['month_year'] = pd.to_datetime(x_df['month_year'], format='%b-%Y')
         x_df = x_df.reset_index()

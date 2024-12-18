@@ -104,22 +104,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self)
-        X = check_array(X)
-        distances = pairwise_distances(X, self.X_)
-        if X.shape[1] != self.n_features_in_:
-            raise ValueError(
-                f"X has {X.shape[1]} features, but {self.__class__.__name__} "
-                f"was trained with {self.n_features_in_} features"
-            )
+        check_is_fitted(self, ['X_train_', 'y_train_'])
+        X = self._validate_data(X, accept_sparse=True, reset=False)
+        y_pred = np.zeros(X.shape[0], dtype=self.y_train_.dtype)
+        distances = pairwise_distances(X, self.X_train_, metric='euclidean')
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-        neighbor_labels = self.y_[nearest_indices]
-        y_pred = np.array([
-            np.unique(labels, return_counts=True)[0][np.argmax(
-                np.unique(labels, return_counts=True)[1]
-            )]
-            for labels in neighbor_labels
-        ])
+        nearest_labels = self.y_train_[nearest_indices]
+        for i, labels in enumerate(nearest_labels):
+            unique_labels, counts = np.unique(labels, return_counts=True)
+            y_pred[i] = unique_labels[np.argmax(counts)]
+
         return y_pred
 
     def score(self, X, y):
@@ -138,8 +132,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Accuracy of the model computed for the (X, y) pairs.
         """
         check_is_fitted(self)
-        X = self._validate_data(X, accept_sparse=True, reset=False)
-        y = self._validate_data(y, ensure_2d=False, reset=False)
+        X = check_array(X)
         return np.mean(self.predict(X) == y)
 
 

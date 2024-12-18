@@ -70,7 +70,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     def fit(self, X, y):
         """Fitting function.
 
-         Parameters
+        Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
             Data to train the model.
@@ -82,13 +82,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = check_X_y(X, y)
+        X = check_array(X)
         check_classification_targets(y)
+        X, y = check_X_y(X, y)
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
-        self.X_train_ = X
-        self.y_train_ = y
-
+        self.X_ = X
+        self.y_ = y
         return self
 
     def predict(self, X):
@@ -104,18 +104,22 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self, ['X_train_', 'y_train_'])
+        check_is_fitted(self)
         X = check_array(X)
-        y_pred = []
-        for x in X:
-            distances = pairwise_distances(x.reshape(1, -1), self.X_train_)
-            nearest_indices = np.argsort(distances,
-                                         axis=1)[0][:self.n_neighbors]
-            values, counts = np.unique(self.y_train_[nearest_indices],
-                                       return_counts=True)
-            y_pred.append(values[np.argmax(counts)])
-        y_pred = np.array(y_pred)
-
+        distances = pairwise_distances(X, self.X_)
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(
+                f"X has {X.shape[1]} features, but {self.__class__.__name__} "
+                f"was trained with {self.n_features_in_} features"
+            )
+        nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+        neighbor_labels = self.y_[nearest_indices]
+        y_pred = np.array([
+            np.unique(labels, return_counts=True)[0][np.argmax(
+                np.unique(labels, return_counts=True)[1]
+            )]
+            for labels in neighbor_labels
+        ])
         return y_pred
 
     def score(self, X, y):
@@ -135,10 +139,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
         X = check_array(X)
-        y_pred = self.predict(X)
-        accuracy = np.mean(y_pred == y)
-        return accuracy
-
+        return np.mean(self.predict(X) == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -178,15 +179,18 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        if isinstance(X, pd.Series):
-            dates = X.index if self.time_col == 'index' else X
-        else:
-            dates = X.index if self.time_col == 'index' else X[self.time_col]
-        if not pd.api.types.is_datetime64_any_dtype(dates):
-            raise ValueError(f"Column {self.time_col}\
-                              must be of datetime type")
-        periods = pd.DatetimeIndex(dates).to_period('M').unique()
-        return len(periods) - 1
+        data_df = X.copy()
+        temporal_col = self.time_col
+        if temporal_col == 'index':
+            data_df = data_df.reset_index()
+        if not pd.api.types.is_datetime64_any_dtype(data_df[temporal_col]):
+            raise ValueError(
+                f"Column '{temporal_col}' must contain datetime values"
+            )
+        ordered_data = data_df.sort_values(by=temporal_col)
+        monthly_periods = ordered_data[temporal_col].dt.to_period('M')
+        distinct_months = monthly_periods.unique()
+        return max(0, len(distinct_months) - 1)
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -208,25 +212,18 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-        if isinstance(X, pd.Series):
-            X = X.to_frame()
-        dates = X.index if self.time_col == 'index' else X[self.time_col]
-        if not pd.api.types.is_datetime64_any_dtype(dates):
-            raise ValueError(f"Column {self.time_col}\
-                              must be of datetime type")
-        df_idx = pd.DataFrame({
-            'orig_idx': np.arange(len(dates)),
-            'date': dates
-        })
-        df_idx = df_idx.sort_values('date')
-        unique_months = pd.DatetimeIndex(df_idx['date'])\
-            .to_period('M').unique()
-        for i in range(len(unique_months) - 1):
-            current_month = unique_months[i]
-            next_month = unique_months[i + 1]
-            month_periods = pd.DatetimeIndex(df_idx['date']).to_period('M')
-            train_indices = df_idx[month_periods ==
-                                   current_month]['orig_idx'].values
-            test_indices = df_idx[month_periods ==
-                                  next_month]['orig_idx'].values
-            yield train_indices, test_indices
+        temporal_data = X.reset_index()
+        total_splits = self.get_n_splits(temporal_data, y, groups)
+        temporal_col = self.time_col
+        sorted_data = temporal_data.sort_values(by=temporal_col)
+        monthly_groups = sorted_data.groupby(
+            pd.Grouper(key=temporal_col, freq="M")
+        )
+        monthly_indices = [
+            month_data.index for _,
+            month_data in monthly_groups
+            ]
+        for split_idx in range(total_splits):
+            current_month_indices = list(monthly_indices[split_idx])
+            next_month_indices = list(monthly_indices[split_idx + 1])
+            yield current_month_indices, next_month_indices

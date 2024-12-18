@@ -108,7 +108,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
 
-        X = check_array(X, ensure_2d=True, allow_nd=False)
+        X = check_array(X, ensure_2d=True, accept_sparse=False)
         if X.shape[1] != self.n_features_in_:
             raise ValueError(
                 f"X has {X.shape[1]} features, but this estimator expects "

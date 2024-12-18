@@ -92,12 +92,11 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         check_classification_targets(y)
 
         self.label_encoder_ = LabelEncoder()
-        self.y_ = self.label_encoder_.fit_transform(y)  # Encodage des labels
+        self.y_ = self.label_encoder_.fit_transform(y)
         self.X_ = X
-        self.classes_ = self.label_encoder_.classes_  # Sauvegarde des classes originales
+        self.classes_ = self.label_encoder_.classes_
         self.n_features_in_ = X.shape[1]
 
-        # Vérifier si une seule classe est présente
         if len(self.classes_) == 1:
             self._is_single_class_ = True
         else:
@@ -120,7 +119,8 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         """
         check_is_fitted(self)
 
-        X = validate_data(self, X, ensure_2d=True, reset=False, dtype="numeric")
+        X = validate_data(
+            self, X, ensure_2d=True, reset=False, dtype="numeric")
 
         if self._is_single_class_:
             return np.full(X.shape[0], self.classes_[0])

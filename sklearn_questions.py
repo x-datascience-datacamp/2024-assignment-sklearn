@@ -210,7 +210,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         time_series = self._get_time_series(X)
         unique_months = time_series.to_period("M").unique()
         unique_months = unique_months.sort_values()

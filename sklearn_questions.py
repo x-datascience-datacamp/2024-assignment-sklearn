@@ -90,7 +90,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self.X_ = X
         self.classes_ = self.label_encoder_.classes_
 
-        self.n_features_in_ = X.shape[1]
+        self.n_features_in_ = self.X_.shape[1]
         return self
 
     def predict(self, X):

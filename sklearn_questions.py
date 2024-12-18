@@ -158,50 +158,36 @@ class MonthlySplit(BaseCrossValidator):
     def __init__(self, time_col="index"):  # noqa: D107
         self.time_col = time_col
 
-    def _get_unique_months(self, X):
-        if self.time_col == "index":
-            time_column = X.index
-        else:
-            time_column = X[self.time_col]
-
-        # Ensure the time column is datetime
-        if not pd.api.types.is_datetime64_any_dtype(time_column):
+    def _prepare_data(self, X):
+        X_copy = X.copy()
+        if self.time_col == 'index':
+            X_copy = X_copy.reset_index()
+        if not pd.api.types.is_datetime64_any_dtype(X_copy[self.time_col]):
             raise ValueError(
-                f"Time column {self.time_col} must be of datetime type")
+                f"The column '{self.time_col}' is not a datetime."
+            )
+        X_copy = X_copy.sort_values(by=self.time_col)
 
-        # Extract unique months
-        dates = pd.to_datetime(X.index)
-        unique_months = dates.to_period("M").unique()
-        return unique_months
+        return X_copy
 
     def get_n_splits(self, X, y=None, groups=None):
         """Return the number of splitting iterations in the cross-validator."""
-        unique_months = self._get_unique_months(X)
+        X = self._prepare_data(X)
+        unique_months = X[self.time_col].dt.to_period('M').unique()
         return len(unique_months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set."""
-        if self.time_col == "index":
-            time_column = X.index
-        else:
-            time_column = X[self.time_col]
-
-        # Ensure the time column is datetime
-        if not pd.api.types.is_datetime64_any_dtype(time_column):
-            raise ValueError(
-                f"Time column {self.time_col} must be of datetime type")
-
-        dates = pd.to_datetime(X.index)
-        months = dates.to_period("M")
-        unique_months = months.unique()
-
+        X = X.reset_index()
         n_splits = self.get_n_splits(X, y, groups)
-
+        X_grouped = (
+            X.sort_values(by=self.time_col).groupby(
+                pd.Grouper(key=self.time_col, freq='ME')
+            )
+        )
+        idxs = [group.index for _, group in X_grouped]
         for i in range(n_splits):
-            train_month = unique_months[i]
-            test_month = unique_months[i + 1]
-
-            idx_train = np.where(months == train_month)[0]
-            idx_test = np.where(months == test_month)[0]
+            idx_train = list(idxs[i])
+            idx_test = list(idxs[i+1])
 
             yield (idx_train, idx_test)

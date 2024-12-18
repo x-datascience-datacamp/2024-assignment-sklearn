@@ -62,15 +62,40 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
-    """KNearestNeighbors classifier."""
+    """KNearestNeighbors classifier.
 
-    def __init__(self, n_neighbors=1):  # noqa: D107
+    Parameters
+    ----------
+    n_neighbors : int, default=1
+        Number of neighbors to use for classification.
+        Should be a positive integer.
+    """
+
+    def __init__(self, n_neighbors=1):
         self.n_neighbors = n_neighbors
+
+    def _validate_params(self):
+        """Validate parameters passed to the estimator.
+
+        Raises
+        ------
+        ValueError
+            If parameters are invalid.
+        """
+        if not isinstance(self.n_neighbors, (int, np.integer)):
+            raise ValueError(
+                f"n_neighbors must be an integer, got {type(self.n_neighbors)}"
+            )
+        if self.n_neighbors < 1:
+            raise ValueError(
+                f"n_neighbors must be greater than zero, \
+                got {self.n_neighbors}"
+            )
 
     def fit(self, X, y):
         """Fitting function.
 
-         Parameters
+        Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
             Data to train the model.
@@ -82,13 +107,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        self._validate_params()
         X = check_array(X)
         check_classification_targets(y)
-        X, y = check_X_y(X, y)
+        X, y = check_X_y(X, y, ensure_min_samples=2)
         self.classes_ = np.unique(y)
+        self.X_train_ = X
         self.n_features_in_ = X.shape[1]
-        self.X_ = X
-        self.y_ = y
+        self.y_train_ = y
         return self
 
     def predict(self, X):
@@ -107,24 +133,20 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         check_is_fitted(self)
         X = check_array(X)
         if X.shape[1] != self.n_features_in_:
-            raise ValueError(f"X has {X.shape[1]} features,\
-                              but KNearestNeighbors "
-                             f"was trained with {self.n_features_in_}\
-                             features.")
+            raise ValueError(
+                f"X has {X.shape[1]} features, but KNearestNeighbors "
+                f"was trained with {self.n_features_in_} features."
+            )
+        distances = pairwise_distances(X, self.X_train_)
         y_pred = []
-        for x in X:
-            distances = pairwise_distances(x.reshape(1, -1), self.X_)
-            nearest_indices = np.argsort(
-                distances,
-                axis=1
-                )[0][:self.n_neighbors]
+        for dist in distances:
+            nearest_indices = np.argsort(dist)[:self.n_neighbors]
             values, counts = np.unique(
-                self.y_[nearest_indices],
+                self.y_train_[nearest_indices],
                 return_counts=True
-                )
+            )
             y_pred.append(values[np.argmax(counts)])
-        y_pred = np.array(y_pred)
-        return y_pred
+        return np.array(y_pred)
 
     def score(self, X, y):
         """Calculate the score of the prediction.

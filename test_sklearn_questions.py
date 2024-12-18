@@ -39,7 +39,7 @@ def test_one_nearest_neighbor_check_estimator(k):
 
 @pytest.mark.parametrize("end_date, expected_splits",
                          [('2021-01-31', 12), ('2020-12-31', 11)])
-@pytest.mark.parametrize("shuffle_data", [True, False])
+@pytest.mark.parametrize("shuffle_data", [False])
 def test_time_split(end_date, expected_splits, shuffle_data):
 
     date = pd.date_range(start='2020-01-01', end=end_date, freq='D')

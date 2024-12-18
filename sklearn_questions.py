@@ -47,106 +47,111 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
 """
+from sklearn.model_selection import BaseCrossValidator
 import numpy as np
 import pandas as pd
-
-from sklearn.base import BaseEstimator
-from sklearn.base import ClassifierMixin
-from sklearn.preprocessing import LabelEncoder
-
-from sklearn.model_selection import BaseCrossValidator
-
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
-from sklearn.utils.validation import validate_data
+from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
-    """KNearestNeighbors classifier."""
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
+    """KNearestNeighbors classifier.
 
-    def __init__(self, n_neighbors=1):  # noqa: D107
+    A simple implementation of the K-Nearest Neighbors algorithm for
+    classification tasks. It predicts the target of a test sample
+    based on the majority label of its `k` closest training neighbors,
+    measured with Euclidean distance.
+    """
+
+    def __init__(self, n_neighbors=1):
+        """Initialize the classifier with the number of neighbors.
+
+        Parameters
+        ----------
+        n_neighbors : int, default=1
+            The number of nearest neighbors to use for prediction.
+        """
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
-        """Fitting function.
+        """Fit the training data.
 
-         Parameters
+        Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
-            Data to train the model.
+            Training data.
         y : ndarray, shape (n_samples,)
-            Labels associated with the training data.
+            Training labels.
 
         Returns
         ----------
         self : instance of KNearestNeighbors
-            The current instance of the classifier
+            The fitted classifier.
         """
-        X, y = check_X_y(X, y)
-        X, y = validate_data(self, X, y, reset=True)
+        X, y = self._validate_data(X, y, accept_sparse=True,
+                                   multi_output=False)
         check_classification_targets(y)
-        self.label_encoder_ = LabelEncoder()
-        y = self.label_encoder_.fit_transform(y)
-        check_classification_targets(y)
-        self.y_ = y
-        self.classes_ = self.label_encoder_.classes_
+
+        self.classes_ = np.unique(y)
+        self.n_features_in_ = X.shape[1]
         self.X_ = X
+        self.y_ = y
+        self.is_fitted_ = True
         return self
 
     def predict(self, X):
-        """Predict function.
+        """Predict the class labels for the input samples.
 
         Parameters
         ----------
         X : ndarray, shape (n_test_samples, n_features)
-            Data to predict on.
+            Test data to predict labels for.
 
         Returns
         ----------
         y : ndarray, shape (n_test_samples,)
-            Predicted class labels for each test data sample.
+            Predicted class labels for each test sample.
         """
-        check_is_fitted(self)
-        X = check_array(X)
-        X = validate_data(self, X, reset=False)
+        # Check if fit has been called
+        check_is_fitted(self, ['X_', 'y_'])
+        X = self._validate_data(X, accept_sparse=False, reset=False)
+        y_pred = []
+        for x in X:
+            distances = pairwise_distances(x.reshape(1, -1), self.X_)
+            nearest_indices = np.argsort(distances,
+                                         axis=1)[0][:self.n_neighbors]
+            values, counts = np.unique(self.y_[nearest_indices],
+                                       return_counts=True)
+            y_pred.append(values[np.argmax(counts)])
+        y_pred = np.array(y_pred)
 
-        # Compute pairwise distances between test samples and training data
-        distances = pairwise_distances(X, self.X_)
-
-        # Find indices of the k-nearest neighbors
-        nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-
-        # Get the labels of the k-nearest neighbors
-        nearest_labels = self.y_[nearest_indices]
-
-        # Predict the most common label among the neighbors
-        y_pred_encoded = np.array([
-            np.bincount(nearest_labels[i]).argmax()
-            for i in range(nearest_labels.shape[0])
-        ])
-        # Decode labels back to their original form
-        y_pred = self.label_encoder_.inverse_transform(y_pred_encoded)
         return y_pred
 
     def score(self, X, y):
-        """Calculate the score of the prediction.
+        """Calculate the accuracy of the model on the test data.
 
         Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
-            Data to score on.
+            Test data.
         y : ndarray, shape (n_samples,)
-            target values.
+            True labels.
 
         Returns
         ----------
         score : float
-            Accuracy of the model computed for the (X, y) pairs.
+            Accuracy of the classifier predictions.
         """
+        # Check if fit has been called and validate inputs
+        check_is_fitted(self, ['X_', 'y_'])
+        X = self._validate_data(X, accept_sparse=True, reset=False)
+        y = self._validate_data(y, ensure_2d=False, reset=False)
+
         y_pred = self.predict(X)
-        return np.mean(y_pred == y)
+        accuracy = np.mean(y_pred == y)
+        return accuracy
 
 
 class MonthlySplit(BaseCrossValidator):

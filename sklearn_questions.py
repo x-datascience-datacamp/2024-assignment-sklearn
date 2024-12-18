@@ -104,12 +104,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self, ['X_train_', 'y_train_'])
-        X = self._validate_data(X, accept_sparse=True, reset=False)
-        y_pred = np.zeros(X.shape[0], dtype=self.y_train_.dtype)
-        distances = pairwise_distances(X, self.X_train_, metric='euclidean')
+        check_is_fitted(self, ['X_', 'y_'])
+        X = check_array(X)
+        y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
+        distances = pairwise_distances(X, self.X_, metric='euclidean')
         nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-        nearest_labels = self.y_train_[nearest_indices]
+        nearest_labels = self.y_[nearest_indices]
         for i, labels in enumerate(nearest_labels):
             unique_labels, counts = np.unique(labels, return_counts=True)
             y_pred[i] = unique_labels[np.argmax(counts)]

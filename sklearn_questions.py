@@ -55,8 +55,8 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted
+# from sklearn.utils.validation import check_X_y, check_array
 from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import unique_labels
 # from sklearn.utils.multiclass import check_classification_targets
@@ -104,7 +104,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)  # Check if fit has been called
 
-        X = check_array(X)  # Input validation
+        X = validate_data(self, X, reset=False)
 
         distances = pairwise_distances(X, self.X_, metric='euclidean')
 
@@ -132,7 +132,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)  # Check if fit has been called
 
-        X, y = check_X_y(X, y)  # Input validation
+        X, y = validate_data(self, X, y, reset=False)
 
         y_pred = self.predict(X)
 

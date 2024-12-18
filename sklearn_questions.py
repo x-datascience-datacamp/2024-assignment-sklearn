@@ -70,7 +70,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self.n_neighbors = n_neighbors
 
     def __sklearn_is_fitted__(self):
-        """Checks if fitted.
+        """Check if fitted.
 
         Returns
         ----------

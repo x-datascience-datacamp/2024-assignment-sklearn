@@ -241,8 +241,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             Accuracy of the model computed for the (X, y) pairs.
         """
         check_is_fitted(self)
-        X = self._validate_data(X, accept_sparse=True, reset=False)
-        y = self._validate_data(y, ensure_2d=False, reset=False)
         return np.mean(self.predict(X) == y)
 
 

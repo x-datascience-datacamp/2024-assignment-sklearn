@@ -47,6 +47,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
 """
+
 import numpy as np
 import pandas as pd
 
@@ -56,13 +57,40 @@ from sklearn.base import ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.utils.validation import validate_data
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
-    """KNearestNeighbors classifier."""
+# fonction pour determiner la class la plus frequente dans un tableau
+def def_class(arr):
+    """Find main elements in array function.
+
+    Parameters
+    ----------
+    X : np array
+    Returns
+    ----------
+    first element with the max occurences in the array 
+    """
+    max_count = 0
+    most_frequent = None
+    for element in np.unique(arr):
+        count = np.count_nonzero(arr == element)
+        if count > max_count:
+            max_count = count
+            most_frequent = element
+    return most_frequent
+
+
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
+    """KNearestNeighbors classifier.
+
+    Parameters
+    ----------
+    n_neighbors : int, defaults to 1
+        Number of neighbors to look at. 
+    """
 
     def __init__(self, n_neighbors=1):  # noqa: D107
         self.n_neighbors = n_neighbors
@@ -82,6 +110,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+        self.classes_ = np.unique(y)
+        self.X_train_ = X
+        self.y_train_ = y
+        self.n_features_in_ = X.shape[1]
         return self
 
     def predict(self, X):
@@ -97,8 +131,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        distances = pairwise_distances(X, self.X_train_)
+        proches_ind = []
+        for i in distances:
+            proches_ind.append(np.argsort(i)[: self.n_neighbors])
+        proches_v = self.y_train_[proches_ind]
+        return np.array([def_class(i) for i in proches_v])
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -115,7 +155,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+        accuracy = np.mean(y_pred == y)
+        return accuracy
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -134,7 +176,7 @@ class MonthlySplit(BaseCrossValidator):
         To use the index as column just set `time_col` to `'index'`.
     """
 
-    def __init__(self, time_col='index'):  # noqa: D107
+    def __init__(self, time_col="index"):  # noqa: D107
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
@@ -155,9 +197,19 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if np.ndim(X) == 1 or self.time_col == "index":
+            time_data = X.index
+        else:
+            time_data = X[self.time_col].values
+        if not pd.api.types.is_datetime64_any_dtype(time_data):
+            raise ValueError("datetime")
+        else:
+            time_data = pd.to_datetime(time_data)
 
-    def split(self, X, y, groups=None):
+        unique_months = time_data.to_period("M").unique()
+        return len(unique_months) - 1
+
+    def split(self, X, y=None, groups=None):
         """Generate indices to split data into training and test set.
 
         Parameters
@@ -177,12 +229,40 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        if np.ndim(X) == 1 or self.time_col == "index":
+            time_data = X.index
+        else:
+            time_data = X.reset_index()[self.time_col].values
+        if not pd.api.types.is_datetime64_any_dtype(time_data):
+            raise ValueError("datetime")
+        else:
+            time_data = pd.to_datetime(time_data)
 
-        n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
+        copy = pd.to_datetime(time_data)
+        if np.ndim(X) == 1 or self.time_col == "index":
+            time_data = pd.Series(X.index)
+        else:
+            time_data = X.reset_index()[self.time_col]
+
+        copy = copy.to_period("M")
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+            # trouver le mois min
+            min_month = copy.min()
+            # trouver les index des dates dans ce plus petit mois
+            #  et les ranger dans idx_train
+            idx_train = time_data[
+                (time_data.dt.year == min_month.year)
+                & (time_data.dt.month == min_month.month)
+            ].index.tolist()
+            # enlever le plus peit mois
+            copy = copy[copy != min_month]
+            # refaire la meme pour les indices test
+            # mais sans les enlever
+            # pour qu'ils servent de train dans le prochain
+            min_month = copy.min()
+            idx_test = time_data[
+                (time_data.dt.year == min_month.year)
+                & (time_data.dt.month == min_month.month)
+            ].index.tolist()
+            yield (idx_train, idx_test)

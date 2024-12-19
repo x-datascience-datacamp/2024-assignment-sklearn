@@ -55,8 +55,7 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -176,7 +175,9 @@ class MonthlySplit(BaseCrossValidator):
             time_series = X.index.to_series()
         else:
             if self.time_col not in X.columns:
-                raise ValueError(f"Column '{self.time_col}' not found in data.")
+                raise ValueError(
+                    f"Column '{self.time_col}' not found in data."
+                    )
             time_series = pd.to_datetime(X[self.time_col])
 
         unique_months = time_series.dt.to_period('M').unique()

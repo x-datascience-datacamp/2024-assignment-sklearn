@@ -110,7 +110,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-
         # Check if the model has been fitted
         check_is_fitted(self)
 
@@ -120,7 +119,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
         # Compute distances between X_test and X_train
         distances = pairwise_distances(X, self.X_train_)
-      
+
         # Find the indices of the nearest neighbors
         neighbors_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
 
@@ -145,7 +144,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-
         # Get predictions
         X, y = check_X_y(X, y, estimator=self)
         y_pred = self.predict(X)
@@ -169,7 +167,6 @@ class MonthlySplit(BaseCrossValidator):
         for which this column is not a datetime, it will raise a ValueError.
         To use the index as column just set `time_col` to `'index'`.
     """
-
     def __init__(self, time_col='index'):  # noqa: D107
         self.time_col = time_col
 
@@ -196,7 +193,7 @@ class MonthlySplit(BaseCrossValidator):
             yield train_idx.tolist(), test_idx.tolist()
 
     def _extract_time_data(self, X):
-        """Helper to extract datetime data from the time column or index."""
+        """Extract datetime data from the specified column or index."""
         if self.time_col == 'index':
             if not isinstance(X.index, (pd.DatetimeIndex, pd.RangeIndex)):
                 raise TypeError(
@@ -215,4 +212,5 @@ class MonthlySplit(BaseCrossValidator):
             return X[self.time_col]
 
     def __repr__(self):
+        """Return a string representation of the class instance."""
         return f"MonthlySplit(time_col='{self.time_col}')"

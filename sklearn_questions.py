@@ -50,7 +50,8 @@ to compute distances between 2 sets of samples.
 import numpy as np
 from sklearn.model_selection import BaseCrossValidator
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.utils.validation import check_X_y, check_is_fitted, check_array
+from sklearn.utils.validation import check_X_y, check_is_fitted
+# check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics.pairwise import pairwise_distances
@@ -82,7 +83,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # - They have compatible shapes
         # - X has at least one sample
         # - Data is finite
-        X, y = check_X_y(X, y, ensure_min_samples=1, force_all_finite=True)
+        # X, y = check_X_y(X, y, ensure_min_samples=1, force_all_finite=True)
+        X, y = self._validate_data(X, y, ensure_2d=True, force_all_finite=True,
+                                   dtype='numeric')
 
         # Check that the target is suitable for classification tasks
         check_classification_targets(y)
@@ -102,7 +105,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
 
         # A required attribute: n_features_in_ denotes how
         # many features are in the input
-        self.n_features_in_ = X.shape[1]
+        # self.n_features_in_ = X.shape[1]
 
         return self
 
@@ -124,7 +127,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
 
         # Validate the input data for prediction
         # This ensures X has at least one sample and is finite
-        X = check_array(X, ensure_min_samples=1, force_all_finite=True)
+        # X = check_array(X, ensure_min_samples=1, force_all_finite=True)
+        X = self._validate_data(X, reset=False, ensure_2d=True,
+                                force_all_finite=True,
+                                dtype='numeric')
 
         # Compute pairwise distances between the input samples
         # (X) and the training samples (self.X_)

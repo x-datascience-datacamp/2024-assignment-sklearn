@@ -203,7 +203,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         if self.time_col == 'index':
             time_col = pd.Series(X.index, name='time_col').reset_index(
                 drop=True)

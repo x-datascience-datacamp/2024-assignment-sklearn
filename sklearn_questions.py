@@ -104,24 +104,7 @@ class MonthlySplit(BaseCrossValidator):
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
-        """Return the number of splitting iterations in the cross-validator.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
-        y : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-        groups : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-
-        Returns
-        -------
-        n_splits : int
-            The number of splits.
-        """
-
+        """Return the number of splitting iterations in the cross-validator."""
         if self.time_col == 'index':
             X_time = X.reset_index()
         else:
@@ -133,26 +116,7 @@ class MonthlySplit(BaseCrossValidator):
         return n_splits
 
     def split(self, X, y, groups=None):
-        """Generate indices to split data into training and test set.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
-        y : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-        groups : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-
-        Yields
-        ------
-        idx_train : ndarray
-            The training set indices for that split.
-        idx_test : ndarray
-            The testing set indices for that split.
-        """
-
+        """Generate indices to split data into training and test set."""
         X_copy = X.reset_index()
         n_splits = self.get_n_splits(X_copy, y, groups)
         X_grouped = (

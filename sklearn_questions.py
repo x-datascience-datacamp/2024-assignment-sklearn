@@ -55,13 +55,13 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted, validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.utils.multiclass import unique_labels
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +82,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = validate_data(self, X=X, y=y, reset=True)
+        check_classification_targets(y)
+        self.classes_ = unique_labels(y)
+        self.X_ = X
+        self.y_ = y
         return self
 
     def predict(self, X):
@@ -97,7 +102,17 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)
+        X = validate_data(self, X=X, reset=False)
+        n_samples = X.shape[0]
+        y_pred = np.zeros_like(self.y_, shape=n_samples)
+        distance_matrix = pairwise_distances(X, self.X_, metric='euclidean')
+        indices_sorted = np.argsort(distance_matrix, axis=1)
+        nearest_indices = indices_sorted[:, :self.n_neighbors]
+        nearest_labels = self.y_[nearest_indices]
+        for i in range(n_samples):
+            uniques, counts = np.unique(nearest_labels[i], return_counts=True)
+            y_pred[i] = uniques[counts.argmax()]
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +130,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        check_is_fitted(self)
+        X, y = validate_data(self, X=X, y=y, reset=False)
+        check_classification_targets(y)
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +174,19 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        X_copy = X.copy()
+        if self.time_col != "index":
+            if not pd.api.types.is_datetime64_dtype(X[self.time_col]):
+                raise ValueError("The `time_col` should have datetime format.")
+            X_copy = X_copy.set_index(self.time_col)
+        else:
+            if not pd.api.types.is_datetime64_dtype(X.index):
+                raise ValueError(
+                    "The `time_col` index should have datetime format.")
+        self.time_index_ = X_copy.index.sort_values()
+        self.month_periods_ = self.time_index_.to_period('M').unique()
+        n_splits = self.month_periods_.shape[0] - 1
+        return n_splits
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +208,13 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
+        X.sort_index(inplace=True)
+        y.sort_index(inplace=True)
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+            month_train, month_test = self.month_periods_[i:i+2]
+            idx_train = np.argwhere(
+                self.time_index_.to_period('M') == month_train).ravel()
+            idx_test = np.argwhere(
+                self.time_index_.to_period('M') == month_test).ravel()
+            yield idx_train, idx_test

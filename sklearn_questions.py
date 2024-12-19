@@ -180,24 +180,20 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
+        X_copy = X.copy()
         if self.time_col == 'index':
-            if not isinstance(X.index, pd.DatetimeIndex):
-                raise ValueError('datetime')
-            df_tri = X.sort_index()
-            liste_mois = df_tri.index.month
+            X_copy = X_copy.reset_index()
 
-        else:
-            if not pdtypes.is_datetime64_dtype(X[self.time_col]):
-                raise ValueError('datetime')
-            df_tri = X.sort_values(by=self.time_col)
-            df_tri.index = df_tri[self.time_col]
-            liste_mois = df_tri.index.month
+        if not pd.api.types.is_datetime64_any_dtype(X_copy[self.time_col]):
+            raise ValueError(
+                f"The column '{self.time_col}' is not a datetime."
+            )
 
-        n_splits = 0
-        for id in range(1, len(liste_mois)):
-            if liste_mois[id] != liste_mois[id - 1]:
-                n_splits += 1
-        return n_splits
+        X_copy = X_copy.sort_values(by=self.time_col)
+        unique_months = X_copy[self.time_col].dt.to_period('M').unique()
+
+        return len(unique_months) - 1
+
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -221,34 +217,14 @@ class MonthlySplit(BaseCrossValidator):
         """
 
 
-        n_splits = self.get_n_splits(X, y, groups)
-        if self.time_col == 'index':
-            liste_mois = [sorted(X.index)[0]]
-
-        else:
-            liste_mois = [sorted(X['date'])[0]]
-
-        for mois in range(n_splits):
-            liste_mois += [liste_mois[-1] + pd.DateOffset(months=1)]
-
-        for split in range(n_splits):
-            mois_train = liste_mois[split]
-            mois_test = liste_mois[split + 1]
-            idx_train = []
-            idx_test = []
-
-            for Idx in range(len(X)):
-                if self.time_col == 'index':
-                    date = X.index[Idx]
-                else:
-                    date = X.iloc[Idx]['date']
-
-                if (date.month == mois_train.month and
-                        date.year == mois_train.year):
-                    idx_train.append(Idx)
-
-                elif (date.month == mois_test.month and
-                      date.year == mois_test.year):
-                    idx_test.append(Idx)
-
-            yield (idx_train, idx_test)
+        X_copy = X.reset_index()
+        n_splits = self.get_n_splits(X_copy, y, groups)
+        X_grouped = X_copy.sort_values(by=self.time_col).groupby(
+            pd.Grouper(key=self.time_col, freq="M"))
+        idxs = [group.index for _, group in X_grouped]
+        for i in range(n_splits):
+            idx_train = list(idxs[i])
+            idx_test = list(idxs[i+1])
+            yield (
+                idx_train, idx_test
+            )

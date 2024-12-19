@@ -58,7 +58,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 from pandas.api.types import is_datetime64_any_dtype
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107

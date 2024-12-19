@@ -1,5 +1,6 @@
 """Assignment - making a sklearn estimator and cv splitter.
 
+
 The goal of this assignment is to implement by yourself:
 
 - a scikit-learn estimator for the KNearestNeighbors for classification
@@ -47,6 +48,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
 """
+
 import numpy as np
 import pandas as pd
 
@@ -54,14 +56,16 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
+from sklearn.preprocessing import LabelEncoder
+
 
 from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
-from sklearn.utils.multiclass import check_classification_targets
+from sklearn.utils.validation import validate_data
+from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +86,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        self.classes_ = unique_labels(y)
+        X, y = validate_data(self, X, y, reset=True)
+
+        # Label encoder
+        self.label_encoder_ = LabelEncoder()
+        self.X_ = X
+        # Encoding the labels at the beginning
+        self.y_ = self.label_encoder_.fit_transform(y)
+        self.is_fitted_ = True
+
         return self
 
     def predict(self, X):
@@ -97,7 +111,28 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        # Validation of the data
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False, dtype=float)
+
+        y_pred = np.zeros(X.shape[0], dtype=int)
+
+        # Getting all the euclidian distance btw the different
+        # vectors to predict and the known one
+        distance_mat = pairwise_distances(X, self.X_).argsort(axis=1)
+
+        # Retrieving only the k-nearest neighbors
+        index_min_dist = distance_mat[:, : self.n_neighbors]
+
+        for ind, row in enumerate(index_min_dist):
+            # Getting the associated prediction of those vectors
+            val = self.y_[row]  # Retreiving the predictions
+            nearest_neigh = np.bincount(val).argmax()
+            y_pred[ind] = nearest_neigh
+
+        # Turning back the labels to the right format
+        y_pred = self.label_encoder_.inverse_transform(y_pred)
+
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +150,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        X, y = check_X_y(X, y)
+
+        y_pred = self.predict(X)
+        acc = (y_pred == y).sum() / len(y)
+        return acc
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -134,7 +173,7 @@ class MonthlySplit(BaseCrossValidator):
         To use the index as column just set `time_col` to `'index'`.
     """
 
-    def __init__(self, time_col='index'):  # noqa: D107
+    def __init__(self, time_col="index"):  # noqa: D107
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
@@ -155,7 +194,19 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+
+        # If the col_date is not the index => Put it as the index
+        if not self.time_col == "index":
+            if np.dtype(X[self.time_col]) != np.dtype("datetime64[ns]"):
+                raise ValueError("Time column should be a datetime object")
+            X_mem = X.set_index(self.time_col).copy()
+        else:
+            X_mem = X.copy()
+            if X_mem.index.dtype != np.dtype("datetime64[ns]"):
+                raise ValueError("Time column should be a datetime object")
+
+        n_split = len(X_mem.resample("ME")) - 1
+        return n_split
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +228,47 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        if isinstance(X, pd.Series):
+            X = pd.DataFrame(X)
 
-        n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
+
+        if not self.time_col == "index":
+            if np.dtype(X[self.time_col]) != np.dtype("datetime64[ns]"):
+                raise ValueError("Time column should be a datetime object")
+            X_ = X.set_index(self.time_col).copy()
+        else:
+            X_ = X.copy()
+            if X_.index.dtype != np.dtype("datetime64[ns]"):
+                raise ValueError("Time column should be a datetime object")
+
+        # From here we work with a df that as the different possible month
+        month_split = pd.unique(X_.to_period("M").index)
+        month_split = pd.Series(month_split)
+        # Formatting it to the YYYY-MM format
+        month_split = month_split.apply(
+            lambda x: "{}-{}".format(x.year, str(x.month).zfill(2))
+        )
+        # Sorting the value
+        month_split.sort_values(inplace=True, ignore_index=True)
+
+        # Memory variable
+        X_mem = X_.copy().sort_index()
+        # Resetting the index andt
+        X_.reset_index(names="date", inplace=True)
+
+        # n_samples = X_.shape[0]
+
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+            # Retrieving the different date of each months
+            mem_id_train = X_mem[: month_split[i]].index
+            # print(pd.unique(mem_id_train))
+            # Dropping them from the memory
+            X_mem.drop(mem_id_train, inplace=True)
+            # Taking the next month
+            mem_id_test = X_mem[: month_split[i + 1]].index
+            # Retrieving the corresponding index
+            idx_train = X_.index[(X_["date"].isin(mem_id_train))].to_list()
+            idx_test = X_.index[(X_["date"].isin(mem_id_test))].to_list()
+
+            yield (idx_train, idx_test)

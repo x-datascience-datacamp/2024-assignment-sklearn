@@ -175,7 +175,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         score : float
             The accuracy of the model on the test data.
         """
-
         y_pred = self.predict(X)
         accuracy = np.mean(y_pred == y)
 
@@ -203,6 +202,7 @@ class MonthlySplit(BaseCrossValidator):
         If 'time_col' is not of datetime type when
         the split function is called.
     """
+    
     def __init__(self, time_col='index'):  # noqa: D107
         self.time_col = time_col
 

@@ -107,7 +107,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-        X = validate_data(self, X,reset=False)
+        X = validate_data(self, X, reset=False)
         y_pred = []
         for k, X_k in enumerate(X):
             X_k = X_k.reshape(1, -1)  # reshaping to have a 2D

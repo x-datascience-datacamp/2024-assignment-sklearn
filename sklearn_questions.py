@@ -60,11 +60,11 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted,  _check_n_features
+from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import _check_n_features
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
-#from sklearn.utils.validation import validate_data
 
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
@@ -88,7 +88,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        #X_checked, y_checked = validate_data(self, X, y)
         X_checked, y_checked = check_X_y(X, y)
         check_classification_targets(y_checked)
         self.X_train_ = pd.DataFrame(X_checked)
@@ -110,12 +109,9 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        #X_checked = validate_data(self, X)
-        
         check_is_fitted(self, attributes=["X_train_", "y_train_"])
         X_checked = check_array(X)
-        _check_n_features(self, X_checked, reset = False)
-        
+        _check_n_features(self, X_checked, reset=False)
         X_checked = pd.DataFrame(X_checked)
         n_samples_test = X_checked.shape[0]
         distance = pairwise_distances(X=X_checked,

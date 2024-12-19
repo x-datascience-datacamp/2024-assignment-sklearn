@@ -47,142 +47,192 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
 """
+
 import numpy as np
 import pandas as pd
-
-from sklearn.base import BaseEstimator
-from sklearn.base import ClassifierMixin
-
+from collections import Counter
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
-
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
-from sklearn.utils.multiclass import check_classification_targets
+from sklearn.utils.multiclass import unique_labels
+from sklearn.utils.validation import validate_data, check_is_fitted
 from sklearn.metrics.pairwise import pairwise_distances
+import pandas.api.types as pdtypes
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
-    def __init__(self, n_neighbors=1):  # noqa: D107
+    def __init__(self, n_neighbors=1):
+        """
+        Initialize the KNearestNeighbors classifier.
+
+        Parameters
+        ----------
+        n_neighbors : int, default=1
+            Number of neighbors to use for classification.
+        """
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
-        """Fitting function.
-
-         Parameters
-        ----------
-        X : ndarray, shape (n_samples, n_features)
-            Data to train the model.
-        y : ndarray, shape (n_samples,)
-            Labels associated with the training data.
-
-        Returns
-        ----------
-        self : instance of KNearestNeighbors
-            The current instance of the classifier
         """
-        return self
-
-    def predict(self, X):
-        """Predict function.
-
-        Parameters
-        ----------
-        X : ndarray, shape (n_test_samples, n_features)
-            Data to predict on.
-
-        Returns
-        ----------
-        y : ndarray, shape (n_test_samples,)
-            Predicted class labels for each test data sample.
-        """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
-
-    def score(self, X, y):
-        """Calculate the score of the prediction.
-
-        Parameters
-        ----------
-        X : ndarray, shape (n_samples, n_features)
-            Data to score on.
-        y : ndarray, shape (n_samples,)
-            target values.
-
-        Returns
-        ----------
-        score : float
-            Accuracy of the model computed for the (X, y) pairs.
-        """
-        return 0.
-
-
-class MonthlySplit(BaseCrossValidator):
-    """CrossValidator based on monthly split.
-
-    Split data based on the given `time_col` (or default to index). Each split
-    corresponds to one month of data for the training and the next month of
-    data for the test.
-
-    Parameters
-    ----------
-    time_col : str, defaults to 'index'
-        Column of the input DataFrame that will be used to split the data. This
-        column should be of type datetime. If split is called with a DataFrame
-        for which this column is not a datetime, it will raise a ValueError.
-        To use the index as column just set `time_col` to `'index'`.
-    """
-
-    def __init__(self, time_col='index'):  # noqa: D107
-        self.time_col = time_col
-
-    def get_n_splits(self, X, y=None, groups=None):
-        """Return the number of splitting iterations in the cross-validator.
+        Fit the classifier to the training data.
 
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
+            Training data.
         y : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-        groups : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
+            Target values.
+
+        Returns
+        -------
+        self : object
+            Fitted estimator.
+        """
+        X, y = validate_data(self, X, y)
+        self.classes_ = unique_labels(y)
+        self.X_ = X
+        self.y_ = y
+        return self
+
+    def predict(self, X):
+        """
+        Predict class labels for the input data.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input data.
+
+        Returns
+        -------
+        y : array-like of shape (n_samples,)
+            Predicted class labels.
+        """
+        check_is_fitted(self, ["X_", "y_"])
+        X = validate_data(self, X, reset=False)
+        y_pred = np.empty(X.shape[0], dtype=self.y_.dtype)
+
+        for i, x in enumerate(X):
+            distances = np.sum((self.X_ - x) ** 2, axis=1)
+            nearest_indices = np.argpartition(distances, self.n_neighbors)[:self.n_neighbors]
+            nearest_labels = self.y_[nearest_indices]
+            y_pred[i] = Counter(nearest_labels).most_common(1)[0][0]
+
+        return y_pred
+
+    def score(self, X, y):
+        """
+        Compute the accuracy of the classifier.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Test data.
+        y : array-like of shape (n_samples,)
+            True labels for `X`.
+
+        Returns
+        -------
+        score : float
+            Mean accuracy of predictions.
+        """
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y)
+
+
+class MonthlySplit(BaseCrossValidator):
+    """Cross-validator based on monthly split."""
+
+    def __init__(self, time_col="index"):
+        """
+        Initialize the MonthlySplit cross-validator.
+
+        Parameters
+        ----------
+        time_col : str, default="index"
+            Column of the input DataFrame that contains datetime values
+            or "index" to use the DataFrame index.
+        """
+        self.time_col = time_col
+
+
+    def get_n_splits(self, X, y=None, groups=None):
+        """
+        Return the number of splits.
+
+        Parameters
+        ----------
+        X : DataFrame
+            Input data.
+        y : Ignored
+            Compatibility parameter.
+        groups : Ignored
+            Compatibility parameter.
 
         Returns
         -------
         n_splits : int
             The number of splits.
         """
-        return 0
+        time_values = self._get_time_values(X)
+        unique_months = time_values.to_period("M").unique()
+        return len(unique_months) - 1
 
-    def split(self, X, y, groups=None):
-        """Generate indices to split data into training and test set.
+    def split(self, X, y=None, groups=None):
+        """
+        Generate indices for training and test sets.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
-        y : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
-        groups : array-like of shape (n_samples,)
-            Always ignored, exists for compatibility.
+        X : DataFrame
+            Input data.
+        y : Ignored
+            Compatibility parameter.
+        groups : Ignored
+            Compatibility parameter.
 
         Yields
         ------
-        idx_train : ndarray
+        train_indices : ndarray
             The training set indices for that split.
-        idx_test : ndarray
+        test_indices : ndarray
             The testing set indices for that split.
         """
+        time_values = self._get_time_values(X)
+        unique_months = time_values.to_period("M").unique()
 
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+        for i in range(len(unique_months) - 1):
+            train_mask = time_values.to_period("M") == unique_months[i]
+            test_mask = time_values.to_period("M") == unique_months[i + 1]
+
+            train_indices = np.where(train_mask)[0]
+            test_indices = np.where(test_mask)[0]
+
+            yield train_indices, test_indices
+
+    def _get_time_values(self, X):
+        """
+        Extract and validate datetime values.
+
+        Parameters
+        ----------
+        X : DataFrame
+            Input data.
+
+        Returns
+        -------
+        time_values : Series
+            A series of datetime values.
+        """
+        if self.time_col == "index":
+            if not isinstance(X.index, pd.DatetimeIndex):
+                raise ValueError("The index must be a DatetimeIndex when time_col='index'.")
+            return X.index
+        else:
+            if self.time_col not in X.columns:
+                raise ValueError(f"Column '{self.time_col}' not found in the DataFrame.")
+            time_values = pd.to_datetime(X[self.time_col], errors="coerce")
+            if time_values.isnull().any():
+                raise ValueError(f"Column '{self.time_col}' contains invalid datetime values.")
+            return time_values

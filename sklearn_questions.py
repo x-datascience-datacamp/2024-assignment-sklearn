@@ -49,19 +49,11 @@ to compute distances between 2 sets of samples.
 """
 import numpy as np
 import pandas as pd
-import pandas.api.types as pdtypes
-
-from sklearn.base import BaseEstimator
-from sklearn.base import ClassifierMixin
-
-from sklearn.model_selection import BaseCrossValidator
-from sklearn.utils.multiclass import unique_labels
-from sklearn.utils.validation import check_X_y, check_is_fitted, check_array
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
-from sklearn.utils.multiclass import check_classification_targets
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.metrics.pairwise import pairwise_distances
-from collections import Counter
+from sklearn.model_selection import BaseCrossValidator
+from sklearn.utils.multiclass import check_classification_targets
+from sklearn.utils.validation import check_is_fitted
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
@@ -84,15 +76,14 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = self._validate_data(X, y, accept_sparse=True,multi_output=False)
+        X, y = self._validate_data(X, y, accept_sparse=True,
+                                   multi_output=False)
         check_classification_targets(y)
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
-        if len(self.classes_) < 2:
-            raise ValueError("Only 1 class is present.")
-        self.X_train_ = X
-        self.y_train_ = y
-
+        self.X_ = X
+        self.y_ = y
+        self.is_fitted_ = True
         return self
 
     def predict(self, X):
@@ -108,15 +99,18 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self, ['X_train_', 'y_train_'])
-        X = self._validate_data(X, accept_sparse=True, reset=False)
-        y_pred = np.zeros(X.shape[0], dtype=self.y_train_.dtype)
-        distances = pairwise_distances(X, self.X_train_, metric='euclidean')
-        nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-        nearest_labels = self.y_train_[nearest_indices]
-        for i, labels in enumerate(nearest_labels):
-            unique_labels, counts = np.unique(labels, return_counts=True)
-            y_pred[i] = unique_labels[np.argmax(counts)]
+        # Check if fit has been called
+        check_is_fitted(self, ['X_', 'y_'])
+        X = self._validate_data(X, accept_sparse=False, reset=False)
+        y_pred = []
+        for x in X:
+            distances = pairwise_distances(x.reshape(1, -1), self.X_)
+            nearest_indices = np.argsort(distances,
+                                         axis=1)[0][:self.n_neighbors]
+            values, counts = np.unique(self.y_[nearest_indices],
+                                       return_counts=True)
+            y_pred.append(values[np.argmax(counts)])
+        y_pred = np.array(y_pred)
 
         return y_pred
 
@@ -135,12 +129,15 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        check_is_fitted(self)
+        # Check if fit has been called and validate inputs
+        check_is_fitted(self, ['X_', 'y_'])
         X = self._validate_data(X, accept_sparse=True, reset=False)
         y = self._validate_data(y, ensure_2d=False, reset=False)
+
         y_pred = self.predict(X)
         accuracy = np.mean(y_pred == y)
         return accuracy
+
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -185,13 +182,8 @@ class MonthlySplit(BaseCrossValidator):
             X_copy = X_copy.reset_index()
 
         if not pd.api.types.is_datetime64_any_dtype(X_copy[self.time_col]):
-            raise ValueError(
-                f"The column '{self.time_col}' is not a datetime."
-            )
-
-        X_copy = X_copy.sort_values(by=self.time_col)
+            raise ValueError(f"The column '{self.time_col}' is not a datetime.")
         unique_months = X_copy[self.time_col].dt.to_period('M').unique()
-
         return len(unique_months) - 1
 
 
@@ -219,12 +211,13 @@ class MonthlySplit(BaseCrossValidator):
 
         X_copy = X.reset_index()
         n_splits = self.get_n_splits(X_copy, y, groups)
-        X_grouped = X_copy.sort_values(by=self.time_col).groupby(
-            pd.Grouper(key=self.time_col, freq="M"))
+        X_grouped = (
+            X_copy.sort_values(by=self.time_col)
+            .groupby(pd.Grouper(key=self.time_col, freq="ME"))
+        )
         idxs = [group.index for _, group in X_grouped]
         for i in range(n_splits):
             idx_train = list(idxs[i])
             idx_test = list(idxs[i+1])
-            yield (
-                idx_train, idx_test
-            )
+
+            yield (idx_train, idx_test)

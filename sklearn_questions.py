@@ -11,6 +11,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):
+        """
+        init
+        """
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -106,6 +109,9 @@ class MonthlySplit(BaseCrossValidator):
     """
 
     def __init__(self, time_col='index'):
+        """
+        init
+        """
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):

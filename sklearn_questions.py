@@ -52,12 +52,10 @@ import pandas as pd
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
-from sklearn.utils.validation import validate_data
-
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import (check_X_y, check_is_fitted,
+                                      check_array)
 from sklearn.utils.multiclass import (check_classification_targets,
                                       unique_labels)
 from sklearn.metrics.pairwise import pairwise_distances
@@ -107,7 +105,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
         X = check_array(X)
-        X = validate_data(self, X, reset=False)
         y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
         for i, x_test in enumerate(X):
             distance = pairwise_distances(x_test.reshape(1, -1), self.X_train)

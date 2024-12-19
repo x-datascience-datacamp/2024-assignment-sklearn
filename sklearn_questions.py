@@ -48,15 +48,15 @@ from sklearn.metrics.pairwise import pairwise_distances
 to compute distances between 2 sets of samples.
 """
 import numpy as np
-import pandas as pd
+#import pandas as pd
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import validate_data, check_is_fitted
+#from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -86,7 +86,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             The current instance of the classifier
         """
         check_classification_targets(y)
-        X, y =check_X_y(X, y)
+        X, y = validate_data(self, X, y)
         self.X_ = X
         self.y_ = y
         self.classes_ = np.unique(y)
@@ -107,14 +107,14 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-        check_array(X)
+        X = validate_data(self, X, reset=False)
         dist_matrix = pairwise_distances(X, self.X_)
         dist_sort_pos = np.argsort(dist_matrix, axis=1)[:, :self.n_neighbors]
         y_closest = self.y_[dist_sort_pos]
         y_pred = [max(Counter(row), key=Counter(row).get) for row in y_closest]
 
         return np.array(y_pred)
-    
+
     def score(self, X, y):
         """Calculate the score of the prediction.
 
@@ -131,7 +131,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             Accuracy of the model computed for the (X, y) pairs.
         """
         check_is_fitted(self)
-        check_array(X)
+        X = validate_data(self, X, reset=False)
         check_classification_targets(y)
         y_pred = self.predict(X)
         # pres.shape[0] is the number of instances predicted, like len

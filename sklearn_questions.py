@@ -49,6 +49,11 @@ to compute distances between 2 sets of samples.
 """
 import numpy as np
 import pandas as pd
+import datetime as dt
+import math
+from dateutil.relativedelta import relativedelta
+
+from pandas.api.types import is_datetime64_any_dtype as is_datetime
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
@@ -82,6 +87,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X_checked, y_checked = check_X_y(X, y)
+        check_classification_targets(y_checked)
+        self.X_train_ = pd.DataFrame(X_checked)
+        self.y_train_ = y_checked
+        self.classes_ = np.unique(y_checked)
+        self.n_features_in_ = X_checked.shape[1]
         return self
 
     def predict(self, X):
@@ -97,8 +108,25 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
+        check_is_fitted(self, attributes=["X_train_", "y_train_"])
+        X_checked = check_array(X)
+        X_checked = pd.DataFrame(X_checked)
+        n_samples_test = X_checked.shape[0]
+        distance = pairwise_distances(X=X_checked,
+                                      Y=self.X_train_, metric='euclidean')
+        y_pred = np.zeros(X_checked.shape[0])
+        y_pred = []
+        for n in range(n_samples_test):
+            neig = []
+            d_sample = distance[n,]
+            for i in range(self.n_neighbors):
+                index_min = d_sample.argmin()
+                neig.append(self.y_train_[index_min])
+                d_sample[index_min] = math.inf
+            values, counts = np.unique(neig, return_counts=True)
+            most_common = values[np.argmax(counts)]
+            y_pred.append(most_common)
+        return np.array(y_pred)
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -115,7 +143,15 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        check_is_fitted(self, attributes=["X_train_", "y_train_"])
+        check_classification_targets(y)
+        X_checked, y_checked = check_X_y(X, y)
+        y_pred = self.predict(X_checked)
+        counter = 0
+        for i, y_target in enumerate(y_checked):
+            if y_target == y_pred[i]:
+                counter = counter + 1
+        return counter / len(y_checked)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +191,18 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if self.time_col == "index":
+            date = X.index
+        else:
+            date = X[self.time_col]
+        if is_datetime(date):
+            date = date.sort_values(ascending=True)
+            time = []
+            for i in date:
+                time.append(str(str(i.year) + "-" + str(i.month)))
+            return len(np.unique(time))-1
+        else:
+            raise ValueError("The date date column is not in datetime format")
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -163,7 +210,32 @@ class MonthlySplit(BaseCrossValidator):
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
+            Training data, whX_copy = X.copy()
+        n_splits = self.get_n_splits(X_copy, y, groups)
+        # Remove the index if the time column is one
+        if self.time_col == "index":
+            date = X_copy.index
+            X_copy = X_copy.reset_index()
+        else:
+            date = X_copy[self.time_col]
+        date = date.sort_values(ascending=True)
+        delta = relativedelta(months=1)
+        start = dt.datetime(year=date[0].year, month=date[0].month, 
+                            day=date[0].day)
+        end = start + delta
+        # print("Date de debut: " + str(start)
+        # " ------- Date de fin:" + str(end))
+        idx_train = X_copy.index[(X_copy[self.time_col] >= start) & (
+            X_copy[self.time_col] < end)].tolist()
+        # print(idx_train)
+        for i in range(n_splits-1):
+            start = end
+            end = start + delta
+            idx_test = X_copy.index[(X_copy[self.time_col] >= start) & (
+                X_copy[self.time_col] < end)].tolist()
+            yield (
+                idx_train, idx_test
+            )ere `n_samples` is the number of samples
             and `n_features` is the number of features.
         y : array-like of shape (n_samples,)
             Always ignored, exists for compatibility.
@@ -177,12 +249,67 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
+        # Initialize the variables
+        X_copy = X.copy()
+        n_splits = self.get_n_splits(X_copy, y, groups)
+        # Remove the index if the time column is one
+        if self.time_col == "index":
+            
+            date = X_copy.index
+            #print(date)
+            #print(X_copy)
+            #X_copy[self.time_col] = date.values
+            X_copy = X_copy.reset_index()
+            print(X_copy)
+        else:
+            date = X_copy[self.time_col]
+        #print(X_copy[self.time_col].dtype)
+        X_copy["number"] = np.arange(X_copy.shape[0])
+        #print(self.time_col)
+        X_copy[self.time_col] = pd.to_datetime(X_copy[self.time_col])
+        X_copy = X_copy.sort_values(by=self.time_col)
+        #print("X not shuffled")
+        #print(X_copy)
+        date = date.sort_values(ascending=True)
+        delta = relativedelta(months=1)
+        start = dt.datetime(year=date[0].year, month=date[0].month, 
+                            day=date[0].day)
+        end = start + delta
+        #print("Date de debut: " + str(start)+" ------- Date de fin:" + str(end))
+        #print(self.time_col)
+        
+        #print(X_copy)
+        #print(X_copy[self.time_col].dtype)
+        #print(type(start))
+        #print((X_copy[self.time_col] >= start))
+        idx_train = X_copy.loc[(X_copy[self.time_col] >= start) & (
+            X_copy[self.time_col] < end), "number"].tolist()
+        #print(idx_train)
+        for i in range(n_splits-1):
+            start = end
+            end = start + delta
+            #print((X_copy[self.time_col] >= start))
+            idx_test = X_copy.loc[
+                (X_copy[self.time_col] >= start) & 
+                (X_copy[self.time_col] < end),
+                "number"].tolist()
             yield (
                 idx_train, idx_test
             )
+            idx_train = idx_test
+        
+        if date[0].day != date[X.shape[0]-1]:
+            start = end
+            end = start + delta
+            #print(X_copy)
+            #print(self.time_col)
+            #print(X_copy[self.time_col].dtype)
+            #print(type(start))
+            idx_test = X_copy.loc[
+                (X_copy[self.time_col] >= start) & 
+                (X_copy[self.time_col] < end),
+                "number"].tolist()
+        yield (
+            idx_train, idx_test
+        )
+        #print(idx_train)

@@ -56,22 +56,21 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
-        """Fitting function.
+        """Fit the KNearestNeighbors classifier.
 
-         Parameters
+        Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
             Data to train the model.
@@ -83,12 +82,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = check_X_y(X, y, accept_sparse=False, ensure_2d=True)
+        X, y = self._validate_data(X, y, accept_sparse=False, ensure_2d=True)
         check_classification_targets(y)
-
         self.classes_ = np.unique(y)
-        self.X_ = X
-        self.y_ = y
+        self.X_, self.y_ = X, y
         self.is_fitted_ = True
         return self
 
@@ -106,22 +103,21 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self, ["X_", "y_"])
-        X = check_array(X, accept_sparse=False, ensure_2d=True)
+        X = self._validate_data(X, accept_sparse=False, reset=False)
 
-        predictions = []
-        for x in X:
-            distances = pairwise_distances(
-                x.reshape(1, -1), self.X_
-                )
-            nearest_indices = np.argsort(
-                distances, axis=1)[0][
+        y_pred = [
+            self.y_[
+                np.argsort(pairwise_distances(
+                    x.reshape(1, -1), self.X_
+                    ), axis=1)[0][
                     : self.n_neighbors
-                    ]
-            nearest_labels = self.y_[nearest_indices]
-            values, counts = np.unique(nearest_labels, return_counts=True)
-            predictions.append(values[np.argmax(counts)])
-        ypred = np.array(predictions)
-        return ypred
+                ]
+            ]
+            .bincount()
+            .argmax()
+            for x in X
+        ]
+        return np.array(y_pred)
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -140,8 +136,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self, ["X_", "y_"])
         y_pred = self.predict(X)
-        score = np.mean(y_pred == y)
-        return score
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -186,13 +181,13 @@ class MonthlySplit(BaseCrossValidator):
 
         if not pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
             raise ValueError(
-                "The column '{self.time_col}'must be of datetime type."
-                            )
+                f"The column '{self.time_col}' is not a datetime."
+                )
 
         unique_months = X[self.time_col].dt.to_period("M").unique()
         return len(unique_months) - 1
 
-    def split(self, X, y, groups=None):
+    def split(self, X, y=None, groups=None):
         """Generate indices to split data into training and test set.
 
         Parameters
@@ -212,15 +207,13 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         if self.time_col == "index":
             X = X.reset_index()
 
-        X_sorted = X.sort_values(by=self.time_col)
-        monthly_groups = X_sorted.groupby(
-            pd.Grouper(key=self.time_col, freq="M")
-            )
-        indices = [group.index for _, group in monthly_groups]
+        X = X.sort_values(by=self.time_col)
+        grouped = X.groupby(pd.Grouper(key=self.time_col, freq="M"))
 
-        for i in range(len(indices) - 1):
-            yield indices[i], indices[i + 1]
+        indices = [group.index.to_numpy() for _, group in grouped]
+
+        for train_idx, test_idx in zip(indices[:-1], indices[1:]):
+            yield train_idx, test_idx

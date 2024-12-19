@@ -1,6 +1,5 @@
 """Assignment - making a sklearn estimator and cv splitter.
 
-
 The goal of this assignment is to implement by yourself:
 
 - a scikit-learn estimator for the KNearestNeighbors for classification
@@ -194,7 +193,6 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-
         # If the col_date is not the index => Put it as the index
         if not self.time_col == "index":
             if np.dtype(X[self.time_col]) != np.dtype("datetime64[ns]"):

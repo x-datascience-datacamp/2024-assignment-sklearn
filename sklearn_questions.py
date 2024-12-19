@@ -52,6 +52,7 @@ import pandas as pd
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
+from sklearn.utils.validation import validate_data
 
 from sklearn.model_selection import BaseCrossValidator
 
@@ -105,13 +106,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-        check_array(X)
-        y_pred = np.zeros(1, X.shape[0])
-        for i in range(X.shape[0]):
-            closest_point = pairwise_distances(X[i].reshape(1, -1),
-                                               self.X_train)
-            y_pred[i] = self.y_train(closest_point.index(
-                np.min(closest_point)))
+        X = check_array(X)
+        X = validate_data(self, X, reset=False)
+        y_pred = np.zeros(X.shape[0], dtype=self.y_.dtype)
+        for i, x_test in enumerate(X):
+            distance = pairwise_distances(x_test.reshape(1, -1), self.X_train)
+            idx = np.argsort(distance, axis=1)[:, : self.n_neighbors]
+            neighbors, n = np.unique(self.y_train[idx], return_counts=True)
+            y_pred[i] = neighbors[np.argmax(n)]
         return y_pred
 
     def score(self, X, y):

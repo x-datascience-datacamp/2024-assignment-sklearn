@@ -57,8 +57,8 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array, column_or_1d
+from sklearn.utils.validation import validate_data, check_is_fitted
+from sklearn.utils.validation import column_or_1d
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -98,8 +98,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : KNearestNeighbors
             Returns the classifier itself.
         """
-        # Validate X and y
-        X, y = check_X_y(X, y)
+        # Validate input X and y
+        X, y = validate_data(self, X, y)
         y = column_or_1d(y, warn=True)
         check_classification_targets(y)
 
@@ -132,7 +132,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # Check if model has been trained
         check_is_fitted(self, ["X_", "y_", "classes_"])
         # Validate input X
-        X = check_array(X)
+        X = validate_data(self, X)
         # Calculate distances between test and training samples
         distances = pairwise_distances(X, self.X_)
         # Find indices of the k-nearest neighbors
@@ -171,7 +171,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # Check if model has been trained
         check_is_fitted(self, ["X_", "y_", "classes_"])
         # Validate input X and y
-        X = check_array(X)
+        X = validate_data(self, X)
         y = column_or_1d(y, warn=True)
         # Compare predicted labels with actual labels
         y_pred = self.predict(X)

@@ -61,6 +61,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
     def __init__(self, n_neighbors=1):  # noqa: D107
         """Initialize the classifier with the number of neighbors.
+
         Parameters
         ----------
         n_neighbors : int, default=1
@@ -215,7 +216,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         X_copy = X.reset_index()
         n_splits = self.get_n_splits(X_copy, y, groups)
         X_grouped = (

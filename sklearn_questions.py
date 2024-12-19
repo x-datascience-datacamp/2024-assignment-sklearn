@@ -60,7 +60,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier for classification tasks."""
 
-    def __init__(self, n_neighbors=1):
+    def __init__(self, n_neighbors=1):  # noqa: D107
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -151,7 +151,7 @@ class MonthlySplit(BaseCrossValidator):
         'index', the index will be used.
     """
 
-    def __init__(self, time_col='index'):
+    def __init__(self, time_col='index'):  # noqa: D107
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):

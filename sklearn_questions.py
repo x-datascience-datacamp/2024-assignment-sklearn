@@ -220,7 +220,7 @@ class MonthlySplit(BaseCrossValidator):
             date = X_copy[self.time_col]
         date = date.sort_values(ascending=True)
         delta = relativedelta(months=1)
-        start = dt.datetime(year=date[0].year, month=date[0].month, 
+        start = dt.datetime(year=date[0].year, month=date[0].month,
                             day=date[0].day)
         end = start + delta
         # print("Date de debut: " + str(start)
@@ -254,62 +254,39 @@ class MonthlySplit(BaseCrossValidator):
         n_splits = self.get_n_splits(X_copy, y, groups)
         # Remove the index if the time column is one
         if self.time_col == "index":
-            
             date = X_copy.index
-            #print(date)
-            #print(X_copy)
-            #X_copy[self.time_col] = date.values
             X_copy = X_copy.reset_index()
             print(X_copy)
         else:
             date = X_copy[self.time_col]
-        #print(X_copy[self.time_col].dtype)
         X_copy["number"] = np.arange(X_copy.shape[0])
-        #print(self.time_col)
         X_copy[self.time_col] = pd.to_datetime(X_copy[self.time_col])
         X_copy = X_copy.sort_values(by=self.time_col)
-        #print("X not shuffled")
-        #print(X_copy)
         date = date.sort_values(ascending=True)
         delta = relativedelta(months=1)
-        start = dt.datetime(year=date[0].year, month=date[0].month, 
+        start = dt.datetime(year=date[0].year, month=date[0].month,
                             day=date[0].day)
         end = start + delta
-        #print("Date de debut: " + str(start)+" ------- Date de fin:" + str(end))
-        #print(self.time_col)
-        
-        #print(X_copy)
-        #print(X_copy[self.time_col].dtype)
-        #print(type(start))
-        #print((X_copy[self.time_col] >= start))
         idx_train = X_copy.loc[(X_copy[self.time_col] >= start) & (
             X_copy[self.time_col] < end), "number"].tolist()
-        #print(idx_train)
         for i in range(n_splits-1):
             start = end
             end = start + delta
-            #print((X_copy[self.time_col] >= start))
             idx_test = X_copy.loc[
-                (X_copy[self.time_col] >= start) & 
+                (X_copy[self.time_col] >= start) &
                 (X_copy[self.time_col] < end),
                 "number"].tolist()
             yield (
                 idx_train, idx_test
             )
             idx_train = idx_test
-        
         if date[0].day != date[X.shape[0]-1]:
             start = end
             end = start + delta
-            #print(X_copy)
-            #print(self.time_col)
-            #print(X_copy[self.time_col].dtype)
-            #print(type(start))
             idx_test = X_copy.loc[
-                (X_copy[self.time_col] >= start) & 
+                (X_copy[self.time_col] >= start) &
                 (X_copy[self.time_col] < end),
                 "number"].tolist()
         yield (
             idx_train, idx_test
         )
-        #print(idx_train)

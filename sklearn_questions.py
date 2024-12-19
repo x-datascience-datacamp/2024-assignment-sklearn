@@ -69,7 +69,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     def fit(self, X, y):
         """Fitting function.
 
-         Parameters
+        Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
             Data to train the model.
@@ -81,7 +81,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-
         X, y = validate_data(self, X, y)
         check_classification_targets(y)
         self.classes_ = np.unique(y)
@@ -173,7 +172,6 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-
         if self.time_col == 'index':
             X_time = X.reset_index()
         else:
@@ -205,7 +203,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         X_copy = X.reset_index()
         n_splits = self.get_n_splits(X_copy, y, groups)
         X_grouped = (

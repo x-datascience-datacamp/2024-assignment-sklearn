@@ -128,10 +128,10 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
         # Validate input X and ensure it has the correct number of features
         X = validate_data(self, X, reset=False)
-        
+
         # Calculate distances between test and training samples
         distances = pairwise_distances(X, self.X_)
-        
+
         # Find indices of the k-nearest neighbors
         neighbor_indices = np.argsort(distances, axis=1)[:, : self.n_neighbors]
         # Retrieve the neighbors' labels
@@ -165,7 +165,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         """
         # Check if model has been trained
         check_is_fitted(self, ["X_", "y_", "classes_"])
-        # Validate input X 
+        # Validate input X
         X = validate_data(self, X, reset=False)
         # Compare predicted labels with actual labels
         y_pred = self.predict(X)

@@ -202,7 +202,7 @@ class MonthlySplit(BaseCrossValidator):
         If 'time_col' is not of datetime type when
         the split function is called.
     """
-    
+
     def __init__(self, time_col='index'):  # noqa: D107
         self.time_col = time_col
 

@@ -131,8 +131,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         # Check if model has been trained
         check_is_fitted(self, ["X_", "y_", "classes_"])
-        # Validate input X
-        X = validate_data(self, X)
+
+        # Validate input X and ensure it has the correct number of features
+        X = validate_data(self, X, reset=False)
+
         # Calculate distances between test and training samples
         distances = pairwise_distances(X, self.X_)
         # Find indices of the k-nearest neighbors

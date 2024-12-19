@@ -59,8 +59,7 @@ from sklearn.preprocessing import LabelEncoder
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     """KNearestNeighbors classifier."""
 
-    def __init__(self, n_neighbors=1):
-        # Initialize with the number of neighbors
+    def __init__(self, n_neighbors=1):  # noqa: D107
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -154,8 +153,7 @@ class MonthlySplit(BaseCrossValidator):
         To use the index as column just set `time_col` to `'index'`.
     """
 
-    def __init__(self, time_col='index'):
-        # Initialize with the specified time column
+    def __init__(self, time_col='index'):  # noqa: D107
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
@@ -256,5 +254,5 @@ class MonthlySplit(BaseCrossValidator):
         return dates.values  # Return as a numpy array
 
     def __repr__(self):
-        # String representation of the MonthlySplit object
+        """Return a string representation of the MonthlySplit object."""
         return f"MonthlySplit(time_col='{self.time_col}')"

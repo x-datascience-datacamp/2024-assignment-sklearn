@@ -133,6 +133,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         ]
 
         return np.array(y_pred)
+
     def score(self, X, y):
         """Calculate the score of the prediction.
 
@@ -149,7 +150,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             Accuracy of the model computed for the (X, y) pairs.
         """
         y_pred = self.predict(X)
-        return (y == y_pred).sum()/y.size
+        return (y == y_pred).sum() / y.size
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -214,7 +215,6 @@ class MonthlySplit(BaseCrossValidator):
         if not np.issubdtype(time_column.dtype, np.datetime64):
             raise ValueError('Error with datetime column or index.')
 
-
         return (len(time_column.dt.to_period('M').unique()) - 1)
 
     def split(self, X, y, groups=None):
@@ -251,5 +251,4 @@ class MonthlySplit(BaseCrossValidator):
             idx_test = time_column_month[time_column_month == cat_test].index
 
             yield (
-                idx_train.to_list(), idx_test.to_list()
-            )
+                idx_train.to_list(), idx_test.to_list())

@@ -55,14 +55,22 @@ from sklearn.model_selection import BaseCrossValidator
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.validation import check_is_fitted
 
+
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
+        """Initialize the classifier with the number of neighbors.
+
+        Parameters
+        ----------
+        n_neighbors : int, default=1
+            The number of nearest neighbors to use for prediction.
+        """
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
-        """Fitting function.
+        """Fitting the training data.
 
          Parameters
         ----------
@@ -139,7 +147,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         return accuracy
 
 
-
 class MonthlySplit(BaseCrossValidator):
     """CrossValidator based on monthly split.
 
@@ -182,10 +189,12 @@ class MonthlySplit(BaseCrossValidator):
             X_copy = X_copy.reset_index()
 
         if not pd.api.types.is_datetime64_any_dtype(X_copy[self.time_col]):
-            raise ValueError(f"The column '{self.time_col}' is not a datetime.")
+            raise ValueError(
+                f"The column '{self.time_col}' is not a datetime."
+                )
+
         unique_months = X_copy[self.time_col].dt.to_period('M').unique()
         return len(unique_months) - 1
-
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -207,8 +216,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-
         X_copy = X.reset_index()
         n_splits = self.get_n_splits(X_copy, y, groups)
         X_grouped = (

@@ -47,7 +47,6 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
 """
-from typing import Counter
 import numpy as np
 import pandas as pd
 
@@ -56,9 +55,7 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted, validate_data
-# from sklearn.utils.validation import validate_data
-# from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted, validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -105,7 +102,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
 
@@ -118,7 +114,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y_pred = np.array(y_pred)
 
         return y_pred
-    
+
     def score(self, X, y):
         """Calculate the score of the prediction.
 
@@ -134,11 +130,11 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-
         check_is_fitted(self)
         X = validate_data(self, X, reset=False)
         y_pred = self.predict(X)
         return np.mean(y_pred == y)
+
 
 class MonthlySplit(BaseCrossValidator):
     """CrossValidator based on monthly split.
@@ -210,11 +206,15 @@ class MonthlySplit(BaseCrossValidator):
             The testing set indices for that split.
         """
 
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
+        X_copy = X.reset_index()
+        n_splits = self.get_n_splits(X_copy, y, groups)
+        X_grouped = (
+            X_copy.sort_values(by=self.time_col)
+            .groupby(pd.Grouper(key=self.time_col, freq="M"))
+        )
+        idxs = [group.index for _, group in X_grouped]
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+            idx_train = list(idxs[i])
+            idx_test = list(idxs[i+1])
+
+            yield (idx_train, idx_test)

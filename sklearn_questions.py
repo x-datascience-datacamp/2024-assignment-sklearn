@@ -54,14 +54,16 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
+from sklearn.preprocessing import LabelEncoder
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
+from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.metrics import accuracy_score
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +84,19 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = self._validate_data(X, y)
+
+        check_classification_targets(y)
+        self.classes_ = unique_labels(y)
+
+        self.n_features_in_ = X.shape[1]
+
+        self.X_ = X
+        self.y_ = y
+
+        self.label_encoder_ = LabelEncoder()
+        self.y_ = self.label_encoder_.fit_transform(y)
+
         return self
 
     def predict(self, X):
@@ -97,7 +112,23 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)
+        X = self._validate_data(X)
+
+        y_pred = []
+
+        dist = pairwise_distances(X, self.X_, metric='euclidean')
+        plusproche_neighbor = np.argsort(dist, axis=1)[:,
+                                                       :self.n_neighbors]
+        class_neighbor = self.y_[plusproche_neighbor]
+
+        for n in class_neighbor:
+            number = np.bincount(n)
+            biggest_class = np.argmax(number)
+            y_pred.append(biggest_class)
+
+        y_pred = self.label_encoder_.inverse_transform(y_pred)
+
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +146,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        accuracy = accuracy_score(y, self.predict(X))
+        return accuracy
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +187,16 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if self.time_col == 'index':
+            X = X.reset_index()
+
+        time = X[self.time_col]
+
+        if pd.api.types.is_datetime64_any_dtype(time):
+            month = time.dt.to_period('M').unique()
+            return len(month) - 1
+
+        raise ValueError("The \'time_col\' column must have datetime format.")
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +218,23 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        X_new = X.reset_index()
 
-        n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
+
+        X_group = (
+            X_new.sort_values(by=self.time_col)
+            .groupby(pd.Grouper(key=self.time_col, freq='M'))
+        )
+
+        idx = []
+
+        for i, group in X_group:
+            idx.append(group.index)
+
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
+            idx_train = list(idx[i])
+            idx_test = list(idx[i+1])
             yield (
                 idx_train, idx_test
             )

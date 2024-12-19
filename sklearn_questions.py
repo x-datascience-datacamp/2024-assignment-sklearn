@@ -1,6 +1,5 @@
 """Assignment - making a sklearn estimator and cv splitter.
 
-
 The goal of this assignment is to implement by yourself:
 
 - a scikit-learn estimator for the KNearestNeighbors for classification
@@ -21,7 +20,6 @@ scikit-learn estimator needs to check that the input given to `fit` and
 You can find more information on how they should be used in the following doc:
 https://scikit-learn.org/stable/developers/develop.html#rolling-your-own-estimator.
 Make sure to use them to pass `test_nearest_neighbor_check_estimator`.
-
 
 Detailed instructions for question 2:
 The data to split should contain the index or one column in
@@ -58,12 +56,11 @@ from sklearn.base import ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import validate_data, check_is_fitted
-from sklearn.utils.validation import column_or_1d
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """K-Nearest Neighbors classifier.
 
     This classifier implements a simple K-Nearest Neighbors approach for
@@ -99,21 +96,18 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Returns the classifier itself.
         """
         # Validate input X and y
-        X, y = validate_data(self, X, y)
-        y = column_or_1d(y, warn=True)
+        X, y = validate_data(self, X, y, reset=False)
         check_classification_targets(y)
+
+        # Check on n_neighbors
+        if not isinstance(self.n_neighbors, int) or self.n_neighbors < 1:
+            raise ValueError("n_neighbors must be a positive integer.")
 
         # Store training data
         self.X_ = X
         self.y_ = y
         self.classes_ = np.unique(y)
-
-        # Set n_features_in_
         self.n_features_in_ = X.shape[1]
-
-        if not isinstance(self.n_neighbors, int) or self.n_neighbors < 1:
-            raise ValueError("n_neighbors must be a positive integer.")
-
         return self
 
     def predict(self, X):
@@ -130,16 +124,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Class labels for each data sample.
         """
         # Check if model has been trained
-        check_is_fitted(self, ["X_", "y_", "classes_"])
+        check_is_fitted(self, ["X_", "y_"])
 
         # Validate input X and ensure it has the correct number of features
         X = validate_data(self, X, reset=False)
-
+        
         # Calculate distances between test and training samples
         distances = pairwise_distances(X, self.X_)
+        
         # Find indices of the k-nearest neighbors
         neighbor_indices = np.argsort(distances, axis=1)[:, : self.n_neighbors]
-
         # Retrieve the neighbors' labels
         neighbor_labels = self.y_[neighbor_indices]
 
@@ -152,7 +146,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
                 classes, counts = np.unique(lbls, return_counts=True)
                 y_pred.append(classes[np.argmax(counts)])
             y_pred = np.array(y_pred)
-
         return y_pred
 
     def score(self, X, y):
@@ -172,9 +165,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         # Check if model has been trained
         check_is_fitted(self, ["X_", "y_", "classes_"])
-        # Validate input X and y
-        X = validate_data(self, X)
-        y = column_or_1d(y, warn=True)
+        # Validate input X 
+        X = validate_data(self, X, reset=False)
         # Compare predicted labels with actual labels
         y_pred = self.predict(X)
         return np.mean(y_pred == y)

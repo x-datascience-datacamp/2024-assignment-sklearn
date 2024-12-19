@@ -58,6 +58,7 @@ from sklearn.model_selection import BaseCrossValidator
 from sklearn.utils.validation import check_X_y, check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
+from collections import Counter
 
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
@@ -103,22 +104,16 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self, ["X_", "y_", "classes_", "n_features_in_"])
-
-        X = self._validate_data(X, accept_sparse=False, reset=False)
-        distances = pairwise_distances(X, self.X_, metric="euclidean")
-
-        neighbor_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-
-        neighbor_labels = self.y_[neighbor_indices]
-
-        if self.n_neighbors == 1:
-            y_pred = neighbor_labels.flatten()
-        else:
-            from scipy.stats import mode
-            y_pred = mode(neighbor_labels, axis=1).mode.flatten()
-
-        return y_pred
+        check_is_fitted(self)
+        X = self._validate_data(X, reset=False)
+        dists = pairwise_distances(X, self.X_)
+        y_pred = []
+        for i in range(X.shape[0]):
+            k_indices = np.argsort(dists[i])[:self.n_neighbors]
+            k_nearest_labels = self.y_[k_indices]
+            counter = Counter(k_nearest_labels)
+            y_pred.append(counter.most_common(1)[0][0])
+        return np.array(y_pred)
 
     def score(self, X, y):
         """Calculate the score of the prediction.

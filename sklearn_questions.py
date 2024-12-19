@@ -71,7 +71,7 @@ def def_class(arr):
     X : np array
     Returns
     ----------
-    first element with the max occurences in the array 
+    first element with the max occurences in the array
     """
     max_count = 0
     most_frequent = None
@@ -89,7 +89,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     Parameters
     ----------
     n_neighbors : int, defaults to 1
-        Number of neighbors to look at. 
+        Number of neighbors to look at.
     """
 
     def __init__(self, n_neighbors=1):  # noqa: D107

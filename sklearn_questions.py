@@ -50,13 +50,13 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
-from sklearn.utils.validation import check_X_y, check_is_fitted, check_array
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.preprocessing import LabelEncoder
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -77,7 +77,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier.
         """
-        X, y = check_X_y(X, y)
+        X, y = self._validate_data(
+            X, y, accept_sparse=True, multi_output=False
+        )
+
         check_classification_targets(y)
 
         # Encode labels for consistency
@@ -104,7 +107,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-        X = check_array(X)
+        X = self._validate_data(X, accept_sparse=False, reset=False)
 
         # Predict class for each test sample
         n_samples = X.shape[0]
@@ -132,7 +135,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Accuracy of the model computed for the (X, y) pairs.
         """
         check_is_fitted(self)
-        X = check_array(X)
+        X = self._validate_data(X, accept_sparse=True, reset=False)
+        y = self._validate_data(y, ensure_2d=False, reset=False)
         y_pred = self.predict(X)
         return np.mean(y_pred == y)
 

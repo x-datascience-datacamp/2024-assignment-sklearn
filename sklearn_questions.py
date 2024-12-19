@@ -120,7 +120,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         # Validate input data
         X = validate_data(self, X, accept_sparse=False, reset=False)
 
-        # Compute distances from X to training data
+        # Compute distances from X to the training data
         distances = np.linalg.norm(self.X_[None, :, :] - X[:, None, :], axis=2)
 
         # Get indices of the k-nearest neighbors for each test sample
@@ -147,7 +147,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         Returns
         ----------
         score : float
-            Accuracy of the model computed for the (X, y) pairs.
+            Accuracy of the model computed for the (X, y) pairs
         """
         y_pred = self.predict(X)
         return (y == y_pred).sum() / y.size

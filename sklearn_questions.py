@@ -107,7 +107,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         """
         check_is_fitted(self)
         X = check_array(X)
-        if X.shape[1] != self.X_.shape[1]:
+        if X.shape[1] != self.n_features_in_:
             raise ValueError()
         y_pred = []
         for row in X:

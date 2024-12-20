@@ -61,117 +61,148 @@ from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
-
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     """KNearestNeighbors classifier."""
 
-    def __init__(self, n_neighbors=1):  # noqa: D107
+    def __init__(self, n_neighbors=1):
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
-        """Fitting function.
-
-         Parameters
-        ----------
-        X : ndarray, shape (n_samples, n_features)
-            Data to train the model.
-        y : ndarray, shape (n_samples,)
-            Labels associated with the training data.
-
-        Returns
-        ----------
-        self : instance of KNearestNeighbors
-            The current instance of the classifier
-        """
+        """Fit the model using X as training data and y as target values."""
         X, y = check_X_y(X, y)
         check_classification_targets(y)
         self.X_train_ = X
         self.y_train_ = y
         self.classes_ = np.unique(y)
+        self.n_features_in_ = X.shape[1]  # Set the n_features_in_ attribute
         return self
 
     def predict(self, X):
-        """Predict function.
-
-        Parameters
-        ----------
-        X : ndarray, shape (n_test_samples, n_features)
-            Data to predict on.
-
-        Returns
-        ----------
-        y : ndarray, shape (n_test_samples,)
-            Predicted class labels for each test data sample.
-        """
-        check_is_fitted(self)
+        """Predict the class labels for the provided data."""
+        check_is_fitted(self, attributes=["X_train_", "y_train_", "classes_", "n_features_in_"])
         X = check_array(X)
         
-        y_pred = []
-        for x in X:
-            distances = np.linalg.norm(self.X_train_ - x, axis=1)
-            neighbor_indices = np.argsort(distances)[:self.n_neighbors]
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(f"Number of features of the input must be {self.n_features_in_}, but the input has {X.shape[1]} features.")
+
+        distances = pairwise_distances(X, self.X_train_)
+        y_pred = np.zeros(X.shape[0], dtype=int)
+
+        for i in range(X.shape[0]):
+            neighbor_indices = np.argsort(distances[i])[:self.n_neighbors]
             neighbor_labels = self.y_train_[neighbor_indices]
             most_common_label = np.bincount(neighbor_labels).argmax()
-            y_pred.append(most_common_label)
-
-        return np.array(y_pred)
+            y_pred[i] = most_common_label
+        
+        return self.classes_[y_pred]
 
     def score(self, X, y):
-        """Calculate the score of the prediction.
-
-        Parameters
-        ----------
-        X : ndarray, shape (n_samples, n_features)
-            Data to score on.
-        y : ndarray, shape (n_samples,)
-            target values.
-
-        Returns
-        ----------
-        score : float
-            Accuracy of the model computed for the (X, y) pairs.
-        """
+        """Return the mean accuracy on the given test data and labels."""
+        y = check_array(y, ensure_2d=False, dtype=int)
         y_pred = self.predict(X)
-
         return np.mean(y_pred == y)
 
 
-
 class MonthlySplit(BaseCrossValidator):
-    """CrossValidator based on monthly split."""
+    """CrossValidator based on monthly split.
+
+    Split data based on the given `time_col` (or default to index). Each split
+    corresponds to one month of data for the training and the next month of
+    data for the test.
+
+    Parameters
+    ----------
+    time_col : str, defaults to 'index'
+        Column of the input DataFrame that will be used to split the data. This
+        column should be of type datetime. If split is called with a DataFrame
+        for which this column is not a datetime, it will raise a ValueError.
+        To use the index as column just set `time_col` to `'index'`.
+    """
 
     def __init__(self, time_col='index'):
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
-        """Return the number of splitting iterations in the cross-validator."""
-        if self.time_col == 'index':
-            dates = X.index
-        else:
-            dates = X[self.time_col]
+        """Return the number of splitting iterations in the cross-validator.
 
-        if not pd.api.types.is_datetime64_any_dtype(dates):
-            raise ValueError("The column used for time-based splitting should be of datetime type.")
-        
-        months = dates.to_period("M").unique()
-        return len(months) - 1
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training data, where `n_samples` is the number of samples
+            and `n_features` is the number of features.
+        y : array-like of shape (n_samples,)
+            Always ignored, exists for compatibility.
+        groups : array-like of shape (n_samples,)
+            Always ignored, exists for compatibility.
+
+        Returns
+        -------
+        n_splits : int
+            The number of splits.
+        """
+        _, time_col_unique = self.get_n_splits_col(X)
+        return len(time_col_unique) - 1
+
+    def get_n_splits_col(self, X):
+        """Get the time column and unique values of the time column.
+
+        Parameters
+        ----------
+        X : DataFrame
+            Data to split.
+
+        Returns
+        -------
+        time_col : pd.DatetimeIndex
+            The time column of the input data.
+        time_col_unique : pd.PeriodIndex
+            Unique values of the time column.
+        """
+        if self.time_col == 'index':
+            if not isinstance(X.index, pd.DatetimeIndex):
+                raise TypeError(
+                    f"The column '{self.time_col}' is not a datetime."
+                )
+            time_col = X.index
+        else:
+            if not pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
+                raise ValueError(
+                    f"The column '{self.time_col}' is not a datetime."
+                )
+            time_col = pd.to_datetime(X[self.time_col])
+
+        if not isinstance(time_col, pd.DatetimeIndex):
+            time_col = pd.DatetimeIndex(time_col)
+        time_col_unique = time_col.to_period("M").unique()
+        return time_col, time_col_unique
 
     def split(self, X, y=None, groups=None):
-        """Generate indices to split data into training and test set."""
-        if self.time_col == 'index':
-            dates = X.index
-        else:
-            dates = X[self.time_col]
+        """Generate indices to split data into training and test set.
 
-        if not pd.api.types.is_datetime64_any_dtype(dates):
-            raise ValueError("The column used for time-based splitting should be of datetime type.")
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training data, where `n_samples` is the number of samples
+            and `n_features` is the number of features.
+        y : array-like of shape (n_samples,)
+            Always ignored, exists for compatibility.
+        groups : array-like of shape (n_samples,)
+            Always ignored, exists for compatibility.
 
-        # Ensure the index is of type Int64Index
-        # if isinstance(dates, pd.RangeIndex):
-        #     dates = dates.astype('int64')
+        Yields
+        ------
+        idx_train : ndarray
+            The training set indices for that split.
+        idx_test : ndarray
+            The testing set indices for that split.
+        """
+        time_col, time_col_unique = self.get_n_splits_col(X)
+        n_splits = self.get_n_splits(X)
+        time_col_unique = sorted(time_col_unique)
+        for i in range(n_splits):
+            train_mask = time_col.to_period('M').isin([time_col_unique[i]])
+            idx_train = np.where(train_mask)[0]
+            test_mask = time_col.to_period('M').isin([time_col_unique[i + 1]])
+            idx_test = np.where(test_mask)[0]
 
-        months = dates.to_period("M").unique()
-        for i in range(len(months) - 1):
-            train_idx = dates[dates.to_period("M") == months[i]].index
-            test_idx = dates[dates.to_period("M") == months[i + 1]].index
-            yield train_idx, test_idx
+            yield idx_train, idx_test

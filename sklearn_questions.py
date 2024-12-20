@@ -175,7 +175,7 @@ class MonthlySplit(BaseCrossValidator):
         if self.time_col != 'index':
             if not pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
                 raise ValueError(
-                    f"Time column '{self.time_col}' must be of datetime " "type."
+                    f"Time column '{self.time_col}' must be of datetime type."
                 )
             T_index = X[self.time_col]
             X = X.set_index(T_index)

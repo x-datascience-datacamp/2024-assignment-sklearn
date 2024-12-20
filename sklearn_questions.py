@@ -60,8 +60,9 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
+
     def __init__(self, n_neighbors=1):  # noqa: D107
-        """init"""
+        """init."""
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -145,8 +146,9 @@ class MonthlySplit(BaseCrossValidator):
         for which this column is not a datetime, it will raise a ValueError.
         To use the index as column just set `time_col` to `'index'`.
     """
+
     def __init__(self, time_col='index'):
-        """init"""
+        """init."""
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):

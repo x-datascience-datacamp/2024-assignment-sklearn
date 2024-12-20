@@ -49,21 +49,17 @@ to compute distances between 2 sets of samples.
 """
 import numpy as np
 import pandas as pd
-
+from typing import Counter
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
-
 from sklearn.model_selection import BaseCrossValidator
-
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_X_y, check_is_fitted, validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
-
     def __init__(self, n_neighbors=1):  # noqa: D107
         self.n_neighbors = n_neighbors
 
@@ -82,6 +78,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+        X, y = validate_data(self, X, y)
+        self.X_train_, self.y_train_ = X, y
+        self.classes_ = np.unique(y)
         return self
 
     def predict(self, X):
@@ -97,7 +98,17 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        check_is_fitted(self, ["X_train_", "y_train_"])
+
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError("The shape of X is wrong")
+        distances = pairwise_distances(X, self.X_train_, metric='euclidean')
+        nearest_neighbors = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+        nearest_labels = self.y_train_[nearest_neighbors]
+        y_pred = np.array([Counter(labels).most_common(1)[0][0]
+                          for labels in nearest_labels])
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +126,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        return np.mean(self.predict(X) == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -133,8 +144,7 @@ class MonthlySplit(BaseCrossValidator):
         for which this column is not a datetime, it will raise a ValueError.
         To use the index as column just set `time_col` to `'index'`.
     """
-
-    def __init__(self, time_col='index'):  # noqa: D107
+    def __init__(self, time_col='index'):
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
@@ -155,9 +165,26 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if self.time_col == 'index':
+            time_data = X.index
+        else:
+            time_data = X[self.time_col]
 
-    def split(self, X, y, groups=None):
+        if (
+            isinstance(time_data, pd.DatetimeIndex)
+            or pd.api.types.is_datetime64_any_dtype(time_data)
+        ):
+            time_periods = pd.PeriodIndex(time_data, freq='M')
+        else:
+            raise ValueError(
+                "The column  must be of datetime type."
+                )
+
+        unique_months = time_periods.unique()
+        unique_months = sorted(unique_months)
+        return max(len(unique_months) - 1, 0)
+
+    def split(self, X, y=None, groups=None):
         """Generate indices to split data into training and test set.
 
         Parameters
@@ -177,12 +204,51 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        if isinstance(X, pd.Series):
+            X_ = X.to_frame()
+        else:
+            X_ = X.copy()
+        if self.time_col == 'index':
+            time_data = X_.index
+        else:
+            time_data = X_[self.time_col]
+        if (
+            isinstance(time_data, pd.DatetimeIndex) or
+            pd.api.types.is_datetime64_any_dtype(time_data)
+        ):
+            time_periods = pd.PeriodIndex(time_data, freq='M')
+        else:
+            raise ValueError(
+                "The column  must be of datetime type."
+                )
+        unique_months = time_periods.unique()
+        unique_months = sorted(unique_months)
 
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+        for i in range(len(unique_months) - 1):
+            train_month = unique_months[i]
+            test_month = unique_months[i + 1]
+
+            if self.time_col == 'index':
+                train_mask = time_periods == train_month
+                test_mask = time_periods == test_month
+            else:
+                train_mask = pd.PeriodIndex(X_[self.time_col],
+                                            freq='M') == train_month
+                test_mask = pd.PeriodIndex(X_[self.time_col],
+                                           freq='M') == test_month
+
+            train_idx = np.where(train_mask)[0]
+            test_idx = np.where(test_mask)[0]
+
+            if len(train_idx) > 0 and len(test_idx) > 0:
+                if self.time_col == 'index':
+                    train_dates = time_data[train_mask]
+                    test_dates = time_data[test_mask]
+                else:
+                    train_dates = X_.loc[train_mask, self.time_col]
+                    test_dates = X_.loc[test_mask, self.time_col]
+                assert train_dates.max() < test_dates.min(), (
+                    "Train max date must be before Test min date"
+                    )
+
+            yield train_idx, test_idx

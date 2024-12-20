@@ -2,6 +2,7 @@
 
 The goal of this assignment is to implement by yourself:
 
+
 - a scikit-learn estimator for the KNearestNeighbors for classification
   tasks and check that it is working properly.
 - a scikit-learn CV splitter where the splits are based on a Pandas

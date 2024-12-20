@@ -55,9 +55,7 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
-from sklearn.utils.validation import validate_data
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -83,18 +81,16 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = self._validate_data(X, y,
-                                   accept_sparse=True,
+        X, y = self._validate_data(X, y, accept_sparse=True,
                                    multi_output=False)
         check_classification_targets(y)
-
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
         if len(self.classes_) < 2:
-            raise ValueError("This set of data has only one class")
-
+            raise ValueError("Only 1 class is present.")
         self.X_train_ = X
         self.y_train_ = y
+
         return self
 
     def predict(self, X):
@@ -110,20 +106,17 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_predict = np.zeros(X.shape[0])
-
         check_is_fitted(self, ['X_train_', 'y_train_'])
         X = self._validate_data(X, accept_sparse=True, reset=False)
-        y_predict = np.zeros(X.shape[0], dtype=self.y_train_.dtype)
-
+        y_pred = np.zeros(X.shape[0], dtype=self.y_train_.dtype)
         distances = pairwise_distances(X, self.X_train_, metric='euclidean')
         nearest_i = np.argsort(distances, axis=1)[:, :self.n_neighbors]
         nearest_l = self.y_train_[nearest_i]
-
         for i, labels in enumerate(nearest_l):
             unique_labels, counts = np.unique(labels, return_counts=True)
-            y_predict[i] = unique_labels[np.argmax(counts)]
-        return y_predict
+            y_pred[i] = unique_labels[np.argmax(counts)]
+
+        return y_pred
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -141,12 +134,10 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             Accuracy of the model computed for the (X, y) pairs.
         """
         check_is_fitted(self)
-
         X = self._validate_data(X, accept_sparse=True, reset=False)
         y = self._validate_data(y, ensure_2d=False, reset=False)
         y_predict = self.predict(X)
         acc = np.mean(y_predict == y)
-
         return acc
 
 
@@ -188,7 +179,6 @@ class MonthlySplit(BaseCrossValidator):
             The number of splits.
         """
         X_cc = X.copy()
-
         if self.time_col == 'index':
             X_cc = X_cc.reset_index()
 
@@ -198,9 +188,9 @@ class MonthlySplit(BaseCrossValidator):
             )
 
         X_cc = X_cc.sort_values(by=self.time_col)
-        card_uniq_months = X_cc[self.time_col].dt.to_period('M').unique()
+        unique_months = X_cc[self.time_col].dt.to_period('M').unique()
 
-        return len(card_uniq_months) - 1
+        return len(unique_months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -222,40 +212,15 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-        if self.time_col == 'index':
-            time_column = (
-                pd.Series(X.index, name='time_column').reset_index(drop=True)
+        X_cc = X.reset_index()
+        n_splits = self.get_n_splits(X_cc, y, groups)
+        X_grp = X_cc.sort_values(by=self.time_col).groupby(
+            pd.Grouper(key=self.time_col, freq="M"))
+        idxs = [group.index for _, group in X_grp]
+
+        for i in range(n_splits):
+            idx_train = list(idxs[i])
+            idx_test = list(idxs[i+1])
+            yield (
+                idx_train, idx_test
             )
-        else:
-            time_column = X[self.time_col].reset_index(drop=True)
-
-        if not pd.api.types.is_datetime64_any_dtype(time_column):
-            raise ValueError(
-                f"The column {self.time_col} must be a datetime panda column")
-
-        if self.time_col == 'index':
-            data_sorted = X.sort_index()
-        else:
-            data_sorted = X.sort_values(by=self.time_col)
-
-        time_column_sorted = pd.Series(
-            data_sorted.index if self.time_col == 'index'
-            else data_sorted[self.time_col]
-        ).reset_index(drop=True)
-
-        periods = pd.to_datetime(time_column_sorted).dt.to_period('M')
-        unique_months = periods.unique()
-
-        for i in range(len(unique_months) - 1):
-            train_period = unique_months[i]
-            test_period = unique_months[i + 1]
-
-            train_mask = periods == train_period
-            test_mask = periods == test_period
-
-            train_indices = data_sorted.index[train_mask]
-            test_indices = data_sorted.index[test_mask]
-        yield (
-            X.index.get_indexer(train_indices),
-            X.index.get_indexer(test_indices)
-        )

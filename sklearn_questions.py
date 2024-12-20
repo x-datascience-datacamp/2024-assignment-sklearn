@@ -56,7 +56,7 @@ from sklearn.base import ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_is_fitted
-#from sklearn.utils.validation import validate_data
+from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -173,7 +173,11 @@ class MonthlySplit(BaseCrossValidator):
             The number of splits.
         """
         if self.time_col != 'index':
-            T_index = pd.to_datetime(X[self.time_col])
+            if not pd.api.types.is_datetime64_any_dtype(X[self.time_col]):
+                raise ValueError(
+                    f"Time column '{self.time_col}' must be of datetime " "type."
+                )
+            T_index = X[self.time_col]
             X = X.set_index(T_index)
         return len(X.resample("M").mean().index)-1
 

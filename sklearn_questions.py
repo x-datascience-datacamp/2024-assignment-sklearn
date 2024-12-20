@@ -68,6 +68,11 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):
+        """Fitting function.
+
+         Dummy
+        """
+        
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -85,6 +90,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        
         self.classes_ = unique_labels(y)
         X, y = validate_data(self, X, y, reset=True)
 
@@ -109,6 +115,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
+        
         check_is_fitted(self)
         X = validate_data(self, X, reset=False, dtype=float)
 
@@ -142,6 +149,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
+        
         X, y = check_X_y(X, y)
 
         y_pred = self.predict(X)
@@ -166,6 +174,11 @@ class MonthlySplit(BaseCrossValidator):
     """
 
     def __init__(self, time_col="index"):
+        """Fitting function.
+
+         Dummy
+        """
+        
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):

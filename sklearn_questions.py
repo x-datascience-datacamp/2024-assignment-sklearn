@@ -204,7 +204,6 @@ class MonthlySplit(BaseCrossValidator):
             T_index = X[self.time_col]
             X = X.set_index(T_index)
 
-        X = X.sort_index()
         col_time = X.resample("M").mean()
         col_time = pd.Series(X.index, index=X.index)
 

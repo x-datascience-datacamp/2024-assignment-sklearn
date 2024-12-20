@@ -60,6 +60,8 @@ from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
+
+
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
@@ -142,6 +144,8 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         accuracy = np.mean(y_pred == y)
         return accuracy
 
+
+
 class MonthlySplit(BaseCrossValidator):
     """CrossValidator based on monthly split.
 
@@ -159,6 +163,17 @@ class MonthlySplit(BaseCrossValidator):
     """
 
     def __init__(self, time_col='index'):
+        """
+        Initialize the MonthlySplit instance.
+
+        Parameters
+        ----------
+        time_col : str, defaults to 'index'
+            Column of the input DataFrame that will be used to split the data.
+            This column should be of type datetime. If split is called with
+            a DataFrame for which this column is not a datetime, it will raise
+            a ValueError. To use the index as column just set `time_col` to `'index'`.
+        """
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):

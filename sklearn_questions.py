@@ -11,7 +11,7 @@ Detailed instructions for question 1:
 The nearest neighbor classifier predicts for a point X_i the target y_k of
 the training sample X_k which is the closest to X_i. We measure proximity with
 the Euclidean distance. The model will be evaluated with the accuracy (average
-number of samples corectly classified). You need to implement the `fit`,
+number of samples correctly classified). You need to implement the `fit`,
 `predict` and `score` methods for this class. The code you write should pass
 the test we implemented. You can run the tests by calling at the root of the
 repo `pytest test_sklearn_questions.py`. Note that to be fully valid, a
@@ -24,7 +24,7 @@ Make sure to use them to pass `test_nearest_neighbor_check_estimator`.
 
 Detailed instructions for question 2:
 The data to split should contain the index or one column in
-datatime format. Then the aim is to split the data between train and test
+datetime format. Then the aim is to split the data between train and test
 sets when for each pair of successive months, we learn on the first and
 predict of the following. For example if you have data distributed from
 november 2020 to march 2021, you have have 4 splits. The first split
@@ -55,13 +55,12 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -70,7 +69,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     def fit(self, X, y):
         """Fitting function.
 
-         Parameters
+        Parameters
         ----------
         X : ndarray, shape (n_samples, n_features)
             Data to train the model.
@@ -82,6 +81,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = self._validate_data(X, y, validate_separately=False)
+        check_classification_targets(y)
+        self.X_ = X
+        self.y_ = y
+        self.classes_ = np.unique(y)
+        self.is_fitted_ = True
         return self
 
     def predict(self, X):
@@ -97,8 +102,31 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
+        check_is_fitted(self, "is_fitted_")
+        X = self._validate_data(X, reset=False)
+        distances = pairwise_distances(X, self.X_)
+        nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+        nearest_labels = self.y_[nearest_indices]
+        y_pred = [self._most_common_label(labels) for labels in nearest_labels]
+        return np.array(y_pred)
+
+    def _most_common_label(self, labels):
+        """
+        Find the most common label in the given array.
+
+        Parameters
+        ----------
+        labels : array-like
+            Array of labels.
+
+        Returns
+        -------
+        most_common : scalar
+            The most common label.
+        """
+        unique, counts = np.unique(labels, return_counts=True)
+        most_common = unique[np.argmax(counts)]
+        return most_common
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -115,7 +143,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +184,9 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        time_data = self._get_time_data(X)
+        months = pd.PeriodIndex(time_data, freq='M')
+        return len(months.unique()) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +208,54 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        time_data = self._get_time_data(X)
+        if not pd.api.types.is_datetime64_any_dtype(time_data):
+            raise ValueError("The time column must be datetime-like")
 
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
+        indices_df = pd.DataFrame({
+            'original_idx': np.arange(len(X)),
+            'time': time_data
+        })
+
+        indices_df = indices_df.sort_values('time')
+
+        months = pd.PeriodIndex(indices_df['time'], freq='M')
+        unique_months = months.unique()
+
+        for i in range(len(unique_months) - 1):
+            current_month = unique_months[i]
+            next_month = unique_months[i + 1]
+
+            train_idx = indices_df[
+                months == current_month]['original_idx'].values
+            test_idx = indices_df[months == next_month]['original_idx'].values
+
+            yield train_idx, test_idx
+
+    def _get_time_data(self, X):
+        """Retrieve the datetime column or index.
+
+        Returns
+        -------
+        pd.Series or pd.Index
+            The time data as datetime values.
+        """
+        try:
+            if self.time_col == 'index':
+                time_data = X.index
+            else:
+                time_data = X[self.time_col]
+
+            if not pd.api.types.is_datetime64_any_dtype(time_data):
+                raise ValueError("The time column must be datetime-like")
+
+            return time_data
+        except (AttributeError, KeyError):
+            raise ValueError(
+                f"Could not access time column '{self.time_col}'. "
+                "Make sure it exists and is datetime-like."
             )
+
+    def __repr__(self):
+        """Return a string representation of the cross-validator."""
+        return f"MonthlySplit(time_col='{self.time_col}')"

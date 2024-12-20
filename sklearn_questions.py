@@ -49,17 +49,11 @@ to compute distances between 2 sets of samples.
 """
 import numpy as np
 import pandas as pd
-
-from sklearn.base import BaseEstimator
-from sklearn.base import ClassifierMixin
-
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
-
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
-
 
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
@@ -141,26 +135,11 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         X = self._validate_data(X, accept_sparse=False, reset=False)
         y = self._validate_data(y, ensure_2d=False, reset=False)
         y_pred = self.predict(X)
-        accuracy = np.mean(y_pred == y)
-        return accuracy
-
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
-    """CrossValidator based on monthly split.
-
-    Split data based on the given `time_col` (or default to index). Each split
-    corresponds to one month of data for the training and the next month of
-    data for the test.
-
-    Parameters
-    ----------
-    time_col : str, defaults to 'index'
-        Column of the input DataFrame that will be used to split the data. This
-        column should be of type datetime. If split is called with a DataFrame
-        for which this column is not a datetime, it will raise a ValueError.
-        To use the index as column just set `time_col` to `'index'`.
-    """
+    """CrossValidator based on monthly split."""
 
     def __init__(self, time_col='index'):
         """
@@ -170,9 +149,6 @@ class MonthlySplit(BaseCrossValidator):
         ----------
         time_col : str, defaults to 'index'
             Column of the input DataFrame that will be used to split the data.
-            This column should be of type datetime. If split is called with
-            a DataFrame for which this column is not a datetime, it will raise
-            a ValueError. To use the index as column just set `time_col` to `'index'`.
         """
         self.time_col = time_col
 
@@ -182,8 +158,7 @@ class MonthlySplit(BaseCrossValidator):
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
+            Training data.
         y : array-like of shape (n_samples,)
             Always ignored, exists for compatibility.
         groups : array-like of shape (n_samples,)
@@ -210,8 +185,7 @@ class MonthlySplit(BaseCrossValidator):
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
-            Training data, where `n_samples` is the number of samples
-            and `n_features` is the number of features.
+            Training data.
         y : array-like of shape (n_samples,)
             Always ignored, exists for compatibility.
         groups : array-like of shape (n_samples,)

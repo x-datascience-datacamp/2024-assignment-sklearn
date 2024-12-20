@@ -110,9 +110,9 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         X = self._validate_data(X, accept_sparse=False, reset=False)
         y_pred = []
         for x in X:
-            distances = pairwise_distances(x.reshape(1, -1), self.X_)
-            nearest_indices = np.argsort(distances, axis=1)[0][:self.n_neighbors]
-            values, counts = np.unique(self.y_[nearest_indices], return_counts=True)
+            dis = pairwise_distances(x.reshape(1, -1), self.X_)
+            near_ind = np.argsort(dis, axis=1)[0][:self.n_neighbors]
+            values, counts = np.unique(self.y_[near_ind], return_counts=True)
             y_pred.append(values[np.argmax(counts)])
         return np.array(y_pred)
 
@@ -174,7 +174,7 @@ class MonthlySplit(BaseCrossValidator):
             X_copy = X_copy.reset_index()
 
         if not pd.api.types.is_datetime64_any_dtype(X_copy[self.time_col]):
-            raise ValueError(f"The column '{self.time_col}' must be of datetime type.")
+            raise ValueError(f"'{self.time_col}' must be of datetime type")
 
         unique_months = X_copy[self.time_col].dt.to_period('M').unique()
         return len(unique_months) - 1
@@ -200,7 +200,7 @@ class MonthlySplit(BaseCrossValidator):
         """
         X_copy = X.reset_index()
         if not pd.api.types.is_datetime64_any_dtype(X_copy[self.time_col]):
-            raise ValueError(f"The column '{self.time_col}' must be of datetime type.")
+            raise ValueError(f"'{self.time_col}' must be of datetime type")
 
         X_grouped = (
             X_copy.sort_values(by=self.time_col)

@@ -82,6 +82,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)  # Validate inputs
+        check_classification_targets(y)  # Ensure classification targets
+        self.X_ = X
+        self.y_ = y
+        self.classes_ = np.unique(y)
         return self
 
     def predict(self, X):
@@ -98,6 +103,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self, ['X_', 'y_'])  # Ensure model is fitted
+        X = check_array(X)  # Validate input data
+        distances = pairwise_distances(X, self.X_)  # Compute distances
+        neighbors = np.argsort(distances, axis=1)[:, :self.n_neighbors]  # Closest neighbors
+        neighbor_labels = self.y_[neighbors]
+        y_pred = np.array([np.bincount(row).argmax() for row in neighbor_labels])
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +126,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +167,11 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if self.time_col == 'index':
+            months = pd.to_datetime(X.index).to_period('M').unique()
+        else:
+            months = pd.to_datetime(X[self.time_col]).to_period('M').unique()
+        return len(months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.

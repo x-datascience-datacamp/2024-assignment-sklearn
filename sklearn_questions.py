@@ -89,6 +89,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
         return self
+
     def predict(self, X):
         """Predict function.
 
@@ -211,7 +212,7 @@ class MonthlySplit(BaseCrossValidator):
         datetime_sorted = col_time.iloc[sorted_idx]
         months = datetime_sorted.dt.to_period("M")
         unique_months = np.sort(months.unique())
-        
+
         for i in range(n_splits):
             train_month = unique_months[i]
             test_month = unique_months[i + 1]

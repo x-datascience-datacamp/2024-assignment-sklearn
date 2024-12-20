@@ -52,19 +52,13 @@ import pandas as pd
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
-# from sklearn.utils.estimator_checks import check_estimator
 
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import validate_data, check_is_fitted
-from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.utils.multiclass import unique_labels
-
-from sklearn.metrics import euclidean_distances
-
-from collections import Counter
 
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
@@ -93,7 +87,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
         self.X_train_ = X
         self.y_train_ = y
-        self.classes_ = np.unique(y)
+        self.classes_ = unique_labels(y)
 
         return self
 
@@ -111,33 +105,18 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-
         X = validate_data(self, X, reset=False)
+
+        distances = pairwise_distances(X, self.X_train_, metric='euclidean')
+        k_indices = np.argsort(distances, axis=1)[:, : self.n_neighbors]
+        k_labels = self.y_train_[k_indices]
+
         y_pred = []
+        for labels in k_labels:
+            label, counts = np.unique(labels, return_counts=True)
+            y_pred.append(label[np.argmax(counts)])
 
-        # distances = pairwise_distances(X, self.X_train_, metric='euclidean')
-
-        # nearest_indices = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-        for _, x in enumerate(X):
-            distances = pairwise_distances(x.reshape(1, -1), self.X_train_)
-            idx = np.argsort(distances, axis=1)[0][:self.n_neighbors]
-            values, counts = np.unique(self.y_train_[idx], return_counts=True)
-            y_pred.append(values[np.argmax(counts)])
-        y_pred = np.array(y_pred)
-
-        return y_pred
-
-        # check_is_fitted(self, ['X_train_', 'y_train_'])
-        # X = check_array(X)
-        # y_pred = np.zeros(X.shape[0])
-
-        # distances = pairwise_distances(X, self.X_train_, metric='euclidean')
-
-        # nearest_neighbors = np.argsort(distances, axis=1)[:, :self.n_neighbors]
-        # nearest_labels = self.y_train_[nearest_neighbors]
-        # y_pred = np.array([np.bincount(labels).argmax() for labels in nearest_labels])
-        # return y_pred
-    # https://scikit-learn.org/stable/developers/develop.html#rolling-your-own-estimator
+        return np.array(y_pred)
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -154,7 +133,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-
         check_is_fitted(self)
 
         y_pred = self.predict(X)
@@ -199,10 +177,7 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-
-        X_copy = X.copy()
-        if self.time_col == 'index':
-            X_copy = X_copy.reset_index()
+        X_copy = X.reset_index()
 
         if not pd.api.types.is_datetime64_any_dtype(X_copy[self.time_col]):
             raise ValueError(f"The column '{self.time_col}' must be datetime.")
@@ -231,12 +206,12 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-        X_copy = X.reset_index()
+        X = X.reset_index()
 
-        n_splits = self.get_n_splits(X_copy, y, groups)
+        n_splits = self.get_n_splits(X, y, groups)
 
         X_grouped = (
-            X_copy.sort_values(by=self.time_col).groupby(
+            X.sort_values(by=self.time_col).groupby(
                 pd.Grouper(key=self.time_col, freq='ME')
             )
         )

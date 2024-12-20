@@ -50,18 +50,20 @@ to compute distances between 2 sets of samples.
 import numpy as np
 import pandas as pd
 
+import pandas.api.types as pdtypes
+
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
-
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
-from sklearn.utils.multiclass import check_classification_targets
-from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.utils.multiclass import unique_labels
+from sklearn.utils.validation import validate_data, check_is_fitted
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+from collections import Counter
+
+
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +84,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = validate_data(self, X, y)
+        self.classes_ = unique_labels(y)
+        self.X_ = X
+        self.y_ = y
         return self
 
     def predict(self, X):
@@ -97,7 +103,21 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+
+        y_pred = np.full(X.shape[0], self.y_[0])
+        for id in range(X.shape[0]):
+            x = X[id]
+            liste_y = []
+
+            list_dis = np.sum((self.X_ - x) ** 2, axis=1)
+            list_Id_min = np.argpartition(list_dis,
+                                          self.n_neighbors)[:self.n_neighbors]
+            for Id_min in list_Id_min:
+                liste_y += [self.y_[Id_min]]
+
+            y_pred[id] = Counter(liste_y).most_common(1)[0][0]
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +135,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+        Accu = 0
+        for id in range(X.shape[0]):
+            if y[id] == y_pred[id]:
+                Accu += 1
+        return Accu / X.shape[0]
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +180,24 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if self.time_col == 'index':
+            if not isinstance(X.index, pd.DatetimeIndex):
+                raise ValueError('datetime')
+            df_tri = X.sort_index()
+            liste_mois = df_tri.index.month
+
+        else:
+            if not pdtypes.is_datetime64_dtype(X[self.time_col]):
+                raise ValueError('datetime')
+            df_tri = X.sort_values(by=self.time_col)
+            df_tri.index = df_tri[self.time_col]
+            liste_mois = df_tri.index.month
+
+        n_splits = 0
+        for id in range(1, len(liste_mois)):
+            if liste_mois[id] != liste_mois[id - 1]:
+                n_splits += 1
+        return n_splits
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +219,35 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+
+        if self.time_col == 'index':
+            liste_mois = [sorted(X.index)[0]]
+
+        else:
+            liste_mois = [sorted(X['date'])[0]]
+
+        for mois in range(n_splits):
+            liste_mois += [liste_mois[-1] + pd.DateOffset(months=1)]
+
+        for split in range(n_splits):
+            mois_train = liste_mois[split]
+            mois_test = liste_mois[split + 1]
+            idx_train = []
+            idx_test = []
+
+            for Idx in range(len(X)):
+                if self.time_col == 'index':
+                    date = X.index[Idx]
+                else:
+                    date = X.iloc[Idx]['date']
+
+                if (date.month == mois_train.month and
+                        date.year == mois_train.year):
+                    idx_train.append(Idx)
+
+                elif (date.month == mois_test.month and
+                      date.year == mois_test.year):
+                    idx_test.append(Idx)
+
+            yield (idx_train, idx_test)

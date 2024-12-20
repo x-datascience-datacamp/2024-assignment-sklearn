@@ -6,7 +6,8 @@
   - Work with Python files (and not just notebooks!)
   - Do a pull request on a GitHub repository
   - Format your code properly using standard Python conventions
-  - Make your code pass tests run automatically on a continuous integration system (GitHub actions)
+  - Make your code pass tests run automatically on a continuous in
+  tegration system (GitHub actions)
   - Understand how to code scikit-learn compatible objects.
 
 ## How?

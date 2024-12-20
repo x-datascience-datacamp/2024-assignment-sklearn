@@ -106,8 +106,8 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
+        check_is_fitted(self)
         X = validate_data(self, X, reset=False)
-        # check_is_fitted(self)
         # X = check_array(X)
         # if X.shape[1] != self.n_features_in_:
         #     raise ValueError()

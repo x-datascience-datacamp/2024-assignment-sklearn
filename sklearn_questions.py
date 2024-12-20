@@ -8,6 +8,7 @@ from sklearn.utils.validation import (
 )
 from sklearn.utils.multiclass import check_classification_targets
 
+
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     """KNearestNeighbors classifier."""
 
@@ -95,7 +96,7 @@ class MonthlySplit(BaseCrossValidator):
     Parameters
     ----------
     time_col : str, default="index"
-        Name of the datetime column used for splitting. Set to 'index' to use the index.
+        Name of the datetime column used for splitting.
     """
 
     def __init__(self, time_col="index"):
@@ -122,14 +123,16 @@ class MonthlySplit(BaseCrossValidator):
             Validated time series data.
         """
         if self.time_col == "index":
-            time_series = pd.Series(X.index, name="time_col").reset_index(drop=True)
+            time_series = pd.Series(X.index, name="time_col").reset_index(
+                drop=True
+            )
         else:
             if self.time_col not in X.columns:
-                raise ValueError(f"Column '{self.time_col}' not found in data.")
+                raise ValueError(f"Column {self.time_col} not found in data.")
             time_series = X[self.time_col].reset_index(drop=True)
 
         if not pd.api.types.is_datetime64_any_dtype(time_series):
-            raise ValueError(f"{self.time_col} must be a datetime column or index.")
+            raise ValueError(f"{self.time_col} must be a datetime.")
 
         return time_series
 

@@ -55,14 +55,13 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
-
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.multiclass import unique_labels
+from sklearn.utils.validation import validate_data, check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -83,12 +82,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = check_X_y(X, y)
+        X, y = validate_data(self, X, y)
         check_classification_targets(y)
         self.X_ = X
         self.y_ = y
         self.n_features_in_ = X.shape[1]
-        self.classes_ = np.unique(y)
+        self.classes_ = unique_labels(y)
         return self
 
     def predict(self, X):
@@ -104,9 +103,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-
-        check_is_fitted(self, ["X_", "y_", "classes_"])
-        X = check_array(X)
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
 
         def get_most_occuring_class(y_neighbours):
             values = np.unique(y_neighbours, return_counts=True)[0]

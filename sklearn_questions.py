@@ -88,7 +88,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self.X_ = X
         self.y_ = y
         self.classes_ = np.unique(y)
-        self.distances_ = pairwise_distances(X, self.X_, metric='minowski')
+        self.distances_ = pairwise_distances(X, self.X_, metric='minkowski')
         return self
 
     def predict(self, X):

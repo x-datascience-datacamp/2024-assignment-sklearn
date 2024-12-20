@@ -50,8 +50,6 @@ to compute distances between 2 sets of samples.
 import numpy as np
 import pandas as pd
 
-from math import floor
-
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
@@ -90,9 +88,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self.y_ = y
         self.classes_ = np.unique(y)
         self.n_features_in_ = X.shape[1]
-        
         return self
-
     def predict(self, X):
         """Predict function.
 
@@ -178,9 +174,7 @@ class MonthlySplit(BaseCrossValidator):
         if self.time_col != 'index':
             T_index = X[self.time_col]
             X = X.set_index(T_index)
-        
         X = X.sort_index()
-        
         return len(X.resample("M").mean().index)-1
 
     def split(self, X, y=None, groups=None):
@@ -204,15 +198,15 @@ class MonthlySplit(BaseCrossValidator):
             The testing set indices for that split.
         """
         n_splits = self.get_n_splits(X)
-        
+
         if self.time_col != 'index':
             T_index = X[self.time_col]
             X = X.set_index(T_index)
-        
+
         X = X.sort_index()
         col_time = X.resample("M").mean()
         col_time = pd.Series(X.index, index=X.index)
-        
+
         sorted_idx = np.argsort(col_time.values)
         datetime_sorted = col_time.iloc[sorted_idx]
         months = datetime_sorted.dt.to_period("M")

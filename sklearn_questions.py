@@ -61,7 +61,7 @@ from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +82,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X_checked = check_array(X)
+        check_classification_targets(y)
+        # y_checked = check_array(y, ensure_2d=False)
+        X_checked, y_checked = check_X_y(X_checked, y)
+        self.X_ = X_checked
+        self.y_ = y_checked
+        self.classes_ = np.unique(y_checked)
+        self.n_features_in_ = X_checked.shape[1]
         return self
 
     def predict(self, X):
@@ -97,8 +105,18 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
+        check_is_fitted(self)
+        X = check_array(X)
+        if X.shape[1] != self.X_.shape[1]:
+            raise ValueError()
+        y_pred = []
+        for row in X:
+            row_and_X = np.append([row], self.X_, axis=0)
+            distances = pairwise_distances(row_and_X)[0][1:]
+            closest_n = distances.argsort()[:self.n_neighbors]
+            values, counts = np.unique(self.y_[closest_n], return_counts=True)
+            y_pred.append(values[counts.argmax()])
+        return np.array(y_pred, dtype=self.y_.dtype)
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -115,7 +133,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        X_checked = check_array(X)
+        check_classification_targets(y)
+        X_checked, y_checked = check_X_y(X_checked, y)
+
+        y_pred = self.predict(X_checked)
+        accuracy = np.mean(y_pred == y)
+
+        return accuracy
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +180,23 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        all_months = set()
+        if self.time_col == "index":
+            for d in X.index:
+                if not isinstance(X.index[0], pd.Timestamp):
+                    raise ValueError("Not a TimeStamp or datetime")
+                if not (d.year, d.month) in all_months:
+                    all_months.add((d.year, d.month))
+        else:
+            if not isinstance(X[self.time_col][0], pd.Timestamp):
+                raise ValueError("Not a TimeStamp or datetime")
+            for d in X[self.time_col]:
+                if not (d.year, d.month) in all_months:
+                    all_months.add((d.year, d.month))
+        return len(all_months)-1
+
+        # if no return encountered
+        raise ValueError("No column contain a datetime")
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +218,45 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
+        all_months = self.get_all_months(X, y, groups)
+        n_splits = len(all_months)-1
+        months = list(all_months)
+        months.sort()
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
+            if self.time_col == "index":
+                if not isinstance(X.index[0], pd.Timestamp):
+                    raise ValueError("Not a TimeStamp or datetime")
+                idx_train = np.nonzero(np.logical_and(
+                    X.index.year == months[i][0],
+                    X.index.month == months[i][1]))[0]
+                idx_test = np.nonzero(np.logical_and(
+                    X.index.year == months[i+1][0],
+                    X.index.month == months[i+1][1]))[0]
+            else:
+                if not isinstance(X[self.time_col][0], pd.Timestamp):
+                    raise ValueError("Not a TimeStamp or datetime")
+                idx_train = np.nonzero(np.logical_and(
+                     X[self.time_col].dt.year == months[i][0],
+                     X[self.time_col].dt.month == months[i][1]))[0]
+                idx_test = np.nonzero(np.logical_and(
+                     X[self.time_col].dt.year == months[i+1][0],
+                     X[self.time_col].dt.month == months[i+1][1]))[0]
             yield (
                 idx_train, idx_test
             )
+
+    def get_all_months(self, X, y, groups=None):
+        all_months = set()
+        if self.time_col == "index":
+            if not isinstance(X.index[0], pd.Timestamp):
+                raise ValueError("Not a TimeStamp or datetime")
+            for d in X.index:
+                if not (d.year, d.month) in all_months:
+                    all_months.add((d.year, d.month))
+        else:
+            if not isinstance(X[self.time_col][0], pd.Timestamp):
+                raise ValueError("Not a TimeStamp or datetime")
+            for d in X[self.time_col]:
+                if not (d.year, d.month) in all_months:
+                    all_months.add((d.year, d.month))
+        return all_months

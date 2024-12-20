@@ -143,7 +143,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
 class MonthlySplit(BaseCrossValidator):
     """CrossValidator based on monthly split.
-    
+
     Split data based on the given `time_col` (or default to index). Each split
     corresponds to one month of data for the training and the next month of
     data for the test.
@@ -163,8 +163,8 @@ class MonthlySplit(BaseCrossValidator):
         Parameters
         ----------
         time_col : str, default='index'
-            The column of the input DataFrame that will 
-            be used to split the data.
+        The column of the input DataFrame that will
+        be used to split the data.
         """
         self.time_col = time_col
 

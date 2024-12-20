@@ -163,7 +163,8 @@ class MonthlySplit(BaseCrossValidator):
         Parameters
         ----------
         time_col : str, default='index'
-            The column of the input DataFrame that will be used to split the data.
+            The column of the input DataFrame that will 
+            be used to split the data.
         """
         self.time_col = time_col
 

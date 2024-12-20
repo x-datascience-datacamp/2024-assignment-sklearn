@@ -67,7 +67,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
-    def __init__(self, n_neighbors=1): 
+    def __init__(self, n_neighbors=1):
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -119,7 +119,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         index_min_dist = distance_mat[:, : self.n_neighbors]
 
         for ind, row in enumerate(index_min_dist):
-            val = self.y_[row] 
+            val = self.y_[row]
             nearest_neigh = np.bincount(val).argmax()
             y_pred[ind] = nearest_neigh
 
@@ -165,7 +165,7 @@ class MonthlySplit(BaseCrossValidator):
         To use the index as column just set `time_col` to `'index'`.
     """
 
-    def __init__(self, time_col="index"): 
+    def __init__(self, time_col="index"):
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
@@ -242,14 +242,13 @@ class MonthlySplit(BaseCrossValidator):
 
         month_split.sort_values(inplace=True, ignore_index=True)
 
-
         X_mem = X_.copy().sort_index()
 
         X_.reset_index(names="date", inplace=True)
 
         for i in range(n_splits):
             mem_id_train = X_mem[: month_split[i]].index
-            
+
             X_mem.drop(mem_id_train, inplace=True)
 
             mem_id_test = X_mem[: month_split[i + 1]].index

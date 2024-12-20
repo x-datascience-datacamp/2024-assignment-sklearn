@@ -83,7 +83,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             The current instance of the classifier
         """
         # X_checked = check_array(X)
-        # check_classification_targets(y)
+        check_classification_targets(y)
         # # y_checked = check_array(y, ensure_2d=False)
         # X_checked, y_checked = check_X_y(X_checked, y)
         X_checked, y_checked = validate_data(self, X, y)

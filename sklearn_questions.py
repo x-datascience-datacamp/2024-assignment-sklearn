@@ -212,7 +212,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         n_splits = self.get_n_splits(X, y, groups)
         if n_splits < 1:
             raise ValueError(
@@ -220,7 +219,6 @@ class MonthlySplit(BaseCrossValidator):
         for i in range(n_splits):
             train_month = self.unique_months[i]
             test_month = self.unique_months[i + 1]
-
             idx_train = [idx for idx, month in enumerate(
                 self.months) if month == train_month]
             idx_test = [idx for idx, month in enumerate(

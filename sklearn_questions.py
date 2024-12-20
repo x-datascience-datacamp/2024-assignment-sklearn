@@ -47,21 +47,19 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
 """
+from typing import Counter
 import numpy as np
 import pandas as pd
-
+from sklearn.model_selection import BaseCrossValidator
+from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import validate_data
+from sklearn.utils.multiclass import check_classification_targets
+from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
-from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
-from sklearn.utils.multiclass import check_classification_targets
-from sklearn.metrics.pairwise import pairwise_distances
-
-
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator, ):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +80,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+
+        X, y = validate_data(self, X, y)
+
+        self._X, self._y = X, y
+        self.classes_ = np.unique(y)
         return self
 
     def predict(self, X):
@@ -97,7 +102,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        check_is_fitted(self, ['_X', '_y'])
+        distances = pairwise_distances(X, self._X, metric='euclidean')
+        nearest_neighbors = np.argsort(distances, axis=1)[:, :self.n_neighbors]
+        nearest_labels = self._y[nearest_neighbors]
+        y_pred = np.array([Counter(labels).most_common(1)[0][0]
+                          for labels in nearest_labels])
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +127,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +168,12 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if self.time_col == 'index':
+            time_column = pd.Series(X.index)
+        else:
+            time_column = X[self.time_col]
+
+        return len(time_column.dt.to_period('M').unique()) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +195,21 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        if self.time_col == 'index':
+            time_c = pd.Series(X.index)
+        else:
+            time_c = X[self.time_col]
 
-        n_samples = X.shape[0]
+        if not np.issubdtype(time_c.dtype, np.datetime64):
+            raise ValueError("The type of time_c must be datetime")
+
+        monthly_periods = time_c.dt.to_period('M')
+        unique_months = monthly_periods.unique()
+        unique_months = sorted(unique_months)
         n_splits = self.get_n_splits(X, y, groups)
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
+            idx_train = np.where(monthly_periods == unique_months[i])[0]
+            idx_test = np.where(monthly_periods == unique_months[i + 1])[0]
             yield (
                 idx_train, idx_test
             )

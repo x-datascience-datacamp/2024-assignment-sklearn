@@ -55,7 +55,7 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
@@ -113,7 +113,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             values, counts = np.unique(
                 self.y_[nearest_indices], return_counts=True
             )
-            y_pred.append(values[np.argmax(counts)]) 
+            y_pred.append(values[np.argmax(counts)])
         return np.array(y_pred)
 
     def score(self, X, y):
@@ -183,7 +183,8 @@ class MonthlySplit(BaseCrossValidator):
             unique_months = X.index.to_period("M").unique()
         else:
             X[self.time_col] = pd.to_datetime(X[self.time_col])
-            unique_months = X[self.time_col].dt.to_period("M").unique()
+            unique_months = X[self.time_col]\
+                .dt.to_period("M").unique()
         return len(unique_months) - 1
 
     def split(self, X, y, groups=None):
@@ -214,22 +215,26 @@ class MonthlySplit(BaseCrossValidator):
 
         if self.time_col == "index":
             try:
-                X.index = pd.to_datetime(X.index)  # Ensure index is datetime
+                X.index = pd.to_datetime(X.index)
             except Exception as e:
                 raise ValueError("Index must be in datetime format.") from e
             time_series = pd.Series(X.index)
         else:
             try:
-                X[self.time_col] = pd.to_datetime(X[self.time_col])  # Ensure column is datetime
+                X[self.time_col] = pd.to_datetime(X[self.time_col])
             except Exception as e:
-                raise ValueError(f"Column '{self.time_col}' must be in datetime format.") from e
+                raise ValueError(f"Column '{self.time_col}\
+                                 ' must be in datetime format.") from e
             time_series = X[self.time_col]
 
         months_periods = time_series.dt.to_period("M")
         unique_months = sorted(months_periods.unique())
 
         if len(unique_months) < 2:
-            raise ValueError("Not enough unique months to create splits. Ensure datetime data spans multiple months.")
+            raise ValueError(
+                "Not enough unique months to create splits. "
+                "Ensure datetime data spans multiple months."
+            )
 
         for i in range(len(unique_months) - 1):
             train_month = unique_months[i]

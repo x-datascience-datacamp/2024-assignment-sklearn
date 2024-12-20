@@ -206,9 +206,7 @@ class MonthlySplit(BaseCrossValidator):
         return len(unique_mth) - 1
 
     def split(self, X, y=None, groups=None):
-        """Generate indices to split data into training and test sets.
-        """
-
+        """Generate indices to split data into training and test sets."""
         if self.time_col == 'index':
             time_col = pd.Series(X.index, name='time_col').reset_index(
                 drop=True)

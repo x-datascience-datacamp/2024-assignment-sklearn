@@ -246,6 +246,23 @@ class MonthlySplit(BaseCrossValidator):
             )
 
     def get_all_months(self, X, y, groups=None):
+        """Return all the months present in the data.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training data, where `n_samples` is the number of samples
+            and `n_features` is the number of features.
+        y : array-like of shape (n_samples,)
+            Always ignored, exists for compatibility.
+        groups : array-like of shape (n_samples,)
+            Always ignored, exists for compatibility.
+
+        Returns
+        -------
+        n_splits : set
+            set of all the months in the data.
+        """
         all_months = set()
         if self.time_col == "index":
             if not isinstance(X.index[0], pd.Timestamp):

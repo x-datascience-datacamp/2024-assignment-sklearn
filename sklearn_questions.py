@@ -62,6 +62,13 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):
+        """Initialize the classifier with the number of neighbors.
+
+        Parameters
+        ----------
+        n_neighbors : int, default=1
+            The number of neighbors to use for classification.
+        """
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):
@@ -136,6 +143,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
 class MonthlySplit(BaseCrossValidator):
     """CrossValidator based on monthly split.
+    
     Split data based on the given `time_col` (or default to index). Each split
     corresponds to one month of data for the training and the next month of
     data for the test.
@@ -150,10 +158,33 @@ class MonthlySplit(BaseCrossValidator):
     """
 
     def __init__(self, time_col="index"):
+        """Initialize the splitter with the time column.
+
+        Parameters
+        ----------
+        time_col : str, default='index'
+            The column of the input DataFrame that will be used to split the data.
+        """
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
-        """Return the number of splitting iterations in the cross-validator."""
+        """Return the number of splitting iterations in the cross-validator.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training data, where `n_samples` is the number of samples
+            and `n_features` is the number of features.
+        y : array-like of shape (n_samples,)
+            Always ignored, exists for compatibility.
+        groups : array-like of shape (n_samples,)
+            Always ignored, exists for compatibility.
+
+        Returns
+        -------
+        n_splits : int
+            The number of splits.
+        """
         time_data = X[self.time_col] if self.time_col != 'index' else X.index
         if not pd.api.types.is_datetime64_any_dtype(time_data):
             raise ValueError("Not a datetime column.")
@@ -175,6 +206,25 @@ class MonthlySplit(BaseCrossValidator):
         return len(split)
 
     def split(self, X, y=None, groups=None):
+        """Generate indices to split data into training and test set.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training data, where `n_samples` is the number of samples
+            and `n_features` is the number of features.
+        y : array-like of shape (n_samples,)
+            Always ignored, exists for compatibility.
+        groups : array-like of shape (n_samples,)
+            Always ignored, exists for compatibility.
+
+        Yields
+        ------
+        idx_train : ndarray
+            The training set indices for that split.
+        idx_test : ndarray
+            The testing set indices for that split.
+        """
         n_splits = self.get_n_splits(X, y, groups)
         old_o = list(X.index)
         # the following is necessary to handle non ordered time data

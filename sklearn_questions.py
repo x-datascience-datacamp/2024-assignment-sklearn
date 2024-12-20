@@ -55,13 +55,12 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_X_y, check_is_fitted, validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier.
 
     A k-nearest neighbors classifier that uses the specified
@@ -113,7 +112,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-        X = check_array(X)
+        X = validate_data(self, X, reset=False)
         distances = pairwise_distances(X, self.X_train_)
         nearest_neighbors = np.argsort(distances, axis=1)[:, :self.n_neighbors]
         unique_classes, y_indices = np.unique(self.y_train_,

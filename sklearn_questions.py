@@ -11,7 +11,7 @@ Detailed instructions for question 1:
 The nearest neighbor classifier predicts for a point X_i the target y_k of
 the training sample X_k which is the closest to X_i. We measure proximity with
 the Euclidean distance. The model will be evaluated with the accuracy (average
-number of samples corectly classified). You need to implement the `fit`,
+number of samples correctly classified). You need to implement the `fit`,
 `predict` and `score` methods for this class. The code you write should pass
 the test we implemented. You can run the tests by calling at the root of the
 repo `pytest test_sklearn_questions.py`. Note that to be fully valid, a
@@ -47,6 +47,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
 """
+
 import numpy as np
 import pandas as pd
 
@@ -82,6 +83,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        check_classification_targets(y)
+        self.X_ = X
+        self.y_ = y
+        self.n_features_in_ = X.shape[1]
+        self.classes_ = np.unique(y)
         return self
 
     def predict(self, X):
@@ -97,7 +104,24 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+
+        check_is_fitted(self, ["X_", "y_", "classes_"])
+        X = check_array(X)
+
+        def get_most_occuring_class(y_neighbours):
+            values = np.unique(y_neighbours, return_counts=True)[0]
+            counts = np.unique(y_neighbours, return_counts=True)[1]
+            most_occuring_class = values[np.argmax(counts)]
+            return most_occuring_class
+
+        dist_matrix = pairwise_distances(X, self.X_, metric="euclidean")
+        sorted_neighbours_idx = np.argsort(dist_matrix, axis=1)
+        nearest_neighbours_idx = sorted_neighbours_idx[:, : self.n_neighbors]
+        nearest_y_vals = self.y_[nearest_neighbours_idx]
+        y_pred = np.apply_along_axis(
+            get_most_occuring_class, axis=1, arr=nearest_y_vals
+        )
+
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +139,9 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+        acc = np.sum(y_pred == y) / len(y)
+        return acc
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -134,7 +160,7 @@ class MonthlySplit(BaseCrossValidator):
         To use the index as column just set `time_col` to `'index'`.
     """
 
-    def __init__(self, time_col='index'):  # noqa: D107
+    def __init__(self, time_col="index"):  # noqa: D107
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
@@ -155,7 +181,13 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+
+        if self.time_col == "index":
+            time_column = pd.Series(X.index)
+        else:
+            time_column = X[self.time_col]
+
+        return len(time_column.dt.to_period("M").unique()) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -178,11 +210,21 @@ class MonthlySplit(BaseCrossValidator):
             The testing set indices for that split.
         """
 
-        n_samples = X.shape[0]
+        if self.time_col == "index":
+            dates = pd.Series(X.index)
+        else:
+            dates = X[self.time_col]
+
+        if not np.issubdtype(dates.dtype, np.datetime64):
+            raise ValueError("The type of the column must be datetime")
+
+        monthly_periods = dates.dt.to_period("M")
+        unique_months = monthly_periods.unique()
+        unique_months = sorted(unique_months)
         n_splits = self.get_n_splits(X, y, groups)
+
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+
+            idx_train = np.where(monthly_periods == unique_months[i])[0]
+            idx_test = np.where(monthly_periods == unique_months[i + 1])[0]
+            yield (idx_train, idx_test)

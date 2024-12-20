@@ -225,8 +225,21 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             Number of month-based splits.
         """
-        # Extract the datetime series
-        datetime_series = self._get_datetime_series(X)
+        # Extract and check the datetime series
+        if self.time_col == "index":
+            datetime_series = pd.Series(X.index, index=X.index)
+        else:
+            if self.time_col not in X.columns:
+                raise ValueError(
+                    f"'{self.time_col}' column not found in the DataFrame."
+                )
+            datetime_series = X[self.time_col]
+
+        if not pd.api.types.is_datetime64_any_dtype(datetime_series):
+            raise ValueError(
+                f"Time column '{self.time_col}' must be of datetime type."
+            )
+
         # Sort by datetime
         sorted_idx = np.argsort(datetime_series.values)
         sorted_months = datetime_series.iloc[sorted_idx].dt.to_period("M")
@@ -255,8 +268,20 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray of shape (n_test_samples,)
             The testing set indices for that split.
         """
-        # Extract the datetime series
-        datetime_series = self._get_datetime_series(X)
+        # Extract and check the datetime series
+        if self.time_col == "index":
+            datetime_series = pd.Series(X.index, index=X.index)
+        else:
+            if self.time_col not in X.columns:
+                raise ValueError(
+                    f"'{self.time_col}' column not found in the DataFrame."
+                )
+            datetime_series = X[self.time_col]
+
+        if not pd.api.types.is_datetime64_any_dtype(datetime_series):
+            raise ValueError(
+                f"Time column '{self.time_col}' must be of datetime type."
+            )
 
         # Sort by datetime to ensure chronological order
         sorted_idx = np.argsort(datetime_series.values)
@@ -268,51 +293,10 @@ class MonthlySplit(BaseCrossValidator):
             train_month = unique_months[i]
             test_month = unique_months[i + 1]
 
-            # Create masks for the train and test months
             train_mask = months == train_month
             test_mask = months == test_month
 
-            # Yield train and test indices
             train_indices = sorted_idx[train_mask]
             test_indices = sorted_idx[test_mask]
 
             yield train_indices, test_indices
-
-    def _get_datetime_series(self, X):
-        """Extract and validate the datetime series from X.
-
-        Parameters
-        ----------
-        X : DataFrame
-            Input data from which to extract the datetime information.
-
-        Returns
-        -------
-        datetime_series : Series
-            A datetime Series used for splitting.
-
-        Raises
-        ------
-        ValueError
-            If the specified time column is not of datetime type or not found.
-        """
-        if self.time_col == "index":
-            datetime_series = pd.Series(X.index, index=X.index)
-        else:
-            if self.time_col not in X.columns:
-                raise ValueError(
-                    f"'{self.time_col}' column not found in the DataFrame."
-                )
-            datetime_series = X[self.time_col]
-
-        # Check if the series is of datetime type
-        if not pd.api.types.is_datetime64_any_dtype(datetime_series):
-            raise ValueError(
-                f"Time column '{self.time_col}' must be of datetime " "type."
-            )
-
-        return datetime_series
-
-    def __repr__(self):
-        """Return representation of the MonthlySplit object."""
-        return f"MonthlySplit(time_col='{self.time_col}')"

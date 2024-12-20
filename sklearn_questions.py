@@ -47,6 +47,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
 """
+
 import numpy as np
 import pandas as pd
 
@@ -55,13 +56,14 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import validate_data, check_is_fitted, check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
+from collections import Counter
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +84,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        self.X_, self.y_ = validate_data(self, X, y)
+        check_classification_targets(y)
+        check_array(X)
+        self.classes_ = np.unique(self.y_)
+        self.n_features_in_ = self.X_.shape[1]
         return self
 
     def predict(self, X):
@@ -97,25 +104,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
-
-    def score(self, X, y):
-        """Calculate the score of the prediction.
-
-        Parameters
-        ----------
-        X : ndarray, shape (n_samples, n_features)
-            Data to score on.
-        y : ndarray, shape (n_samples,)
-            target values.
-
-        Returns
-        ----------
-        score : float
-            Accuracy of the model computed for the (X, y) pairs.
-        """
-        return 0.
+        check_is_fitted(self)
+        X = validate_data(self, X, reset=False)
+        distances = pairwise_distances(X, self.X_)
+        y_pred = []
+        for i in range(len(X)):
+            neighbor_idxs = np.argsort(distances[i])[: self.n_neighbors]
+            neighbor_classes = self.y_[neighbor_idxs]
+            most_common = Counter(neighbor_classes).most_common(1)[0][0]
+            y_pred.append(most_common)
+        return np.array(y_pred)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -134,7 +132,7 @@ class MonthlySplit(BaseCrossValidator):
         To use the index as column just set `time_col` to `'index'`.
     """
 
-    def __init__(self, time_col='index'):  # noqa: D107
+    def __init__(self, time_col="index"):  # noqa: D107
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
@@ -155,7 +153,10 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        time_col = self._extract_time_column(X)
+        time_col = pd.to_datetime(time_col)
+        unique_months = time_col.dt.to_period("M").unique()
+        return len(unique_months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +178,77 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        self._extract_time_column(X)
 
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
+        # Sort the data by the time column or by index if 'index'
+        if self.time_col == "index":
+            X_sorted = X.sort_index()
+        else:
+            X_sorted = X.sort_values(by=self.time_col)
+
+        # After sorting, extract the sorted time column
+        if self.time_col == "index":
+            # sorted_time_col is a DatetimeIndex
+            sorted_time_col = pd.Series(X_sorted.index, index=X_sorted.index)
+        else:
+            # sorted_time_col is a Series already
+            sorted_time_col = X_sorted[self.time_col]
+        sorted_time_col = pd.to_datetime(sorted_time_col)
+
+        # Convert to periods and find unique months
+        time_periods = sorted_time_col.dt.to_period("M")
+        unique_months = time_periods.unique()
+
+        # For each pair of consecutive months, yield train/test indices
+        for i in range(len(unique_months) - 1):
+            train_month = unique_months[i]
+            test_month = unique_months[i + 1]
+
+            train_mask = time_periods == train_month
+            test_mask = time_periods == test_month
+
+            # Indices from the sorted dataframe
+            idx_train_sorted = X_sorted.index[train_mask]
+            idx_test_sorted = X_sorted.index[test_mask]
+
+            # Map sorted indices back to original indices positions
+            idx_train = X.index.get_indexer(idx_train_sorted)
+            idx_test = X.index.get_indexer(idx_test_sorted)
+
+            yield idx_train, idx_test
+
+    def _extract_time_column(self, X):
+        """Extract the time column or index as a Series.
+
+        Parameters
+        ----------
+        X : DataFrame
+            The input data from which the time column or index is extracted.
+
+        Returns
+        -------
+        Series
+            A Series representing the time column.
+
+        Raises
+        ------
+        ValueError
+            If the time_col is not found or not a datetime.
+        """
+        if self.time_col == "index":
+            time_col = pd.Series(X.index, name="time_col").reset_index(
+                drop=True
             )
+        else:
+            if self.time_col not in X.columns:
+                raise ValueError(
+                    f"{self.time_col} column not found in input data."
+                )
+            time_col = X[self.time_col].reset_index(drop=True)
+
+        if not pd.api.types.is_datetime64_any_dtype(time_col):
+            raise ValueError(
+                f"{self.time_col} must be a datetime column or index."
+            )
+
+        return time_col

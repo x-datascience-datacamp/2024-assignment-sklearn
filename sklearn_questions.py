@@ -59,9 +59,10 @@ from sklearn.utils.validation import check_X_y, check_is_fitted
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.utils.validation import validate_data
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +83,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        X, y = validate_data(self, X, y, reset=True)
+        check_classification_targets(y)
+        self.X_ = X
+        self.y_ = y
+        self.classes_ = np.unique(y)
         return self
 
     def predict(self, X):
@@ -97,8 +104,22 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
+        check_is_fitted(self)
+        X = check_array(X)
+        X = validate_data(self, X, reset=False)
+        y = np.zeros(X.shape[0], dtype=self.y_.dtype)
+
+        for idx, sample in enumerate(X):
+            distances = pairwise_distances(sample.reshape(1, -1), self.X_)
+            nearest_indices = (
+                np.argsort(distances, axis=1)[:, :self.n_neighbors]
+            )
+            labels, counts = (
+                np.unique(self.y_[nearest_indices], return_counts=True)
+            )
+            y[idx] = labels[np.argmax(counts)]
+
+        return y
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -115,7 +136,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +177,28 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if not isinstance(X, pd.DataFrame):
+            start_date = X.index.min()
+            end_date = X.index.max()
+        else:
+            if (
+                self.time_col in X.columns
+                and X[self.time_col].dtype != 'datetime64[ns]'
+            ):
+                raise ValueError(
+                    "Column type must be 'datetime64[ns]' for time-based data."
+                )
+            start_date = (
+                X['date'].min() if 'date' in X.columns else X.index.min()
+            )
+            end_date = (
+                X['date'].max() if 'date' in X.columns else X.index.max()
+            )
+        n_splits = (
+            (end_date.year - start_date.year) * 12
+            + (end_date.month - start_date.month)
+        )
+        return n_splits
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +220,28 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
-        n_samples = X.shape[0]
         n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
+
+        time_column = (
+            X['date'] if isinstance(X, pd.DataFrame) and 'date' in X.columns
+            else X.index
+        )
+
+        for idx in range(n_splits):
+            train_start = time_column.min() + pd.DateOffset(months=idx)
+            train_end = (
+                train_start + pd.DateOffset(months=1) - pd.DateOffset(days=1)
             )
+            test_start = train_end + pd.DateOffset(days=1)
+            test_end = (
+                test_start + pd.DateOffset(months=1) - pd.DateOffset(days=1)
+            )
+
+            idx_train = np.argwhere(
+                (time_column >= train_start) & (time_column <= train_end)
+            )[:, 0]
+            idx_test = np.argwhere(
+                (time_column >= test_start) & (time_column <= test_end)
+            )[:, 0]
+
+            yield idx_train, idx_test

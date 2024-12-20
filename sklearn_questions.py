@@ -212,4 +212,3 @@ class MonthlySplit(BaseCrossValidator):
             idx_test = list(idxs[i+1])
 
             yield (idx_train, idx_test)
-

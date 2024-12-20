@@ -55,13 +55,12 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import validate_data, check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -83,11 +82,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             The current instance of the classifier
         """
         check_classification_targets(y)
-        X, y = check_X_y(X, y)
+        X, y = validate_data(self, X, y)
         self.classes_ = np.unique(y)
         self.X_ = X
         self.y_ = y
-        self.n_features_in_ = X.shape[1]
 
         return self
 
@@ -106,7 +104,7 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
 
-        X = check_array(X)
+        X = validate_data(self, X, reset=False)
         DIS = pairwise_distances(self.X_, X)
         DIS_idx = np.argsort(DIS, axis=0)[:self.n_neighbors, :]
         y_pred = self.y_[DIS_idx]
@@ -131,7 +129,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        X, y = check_X_y(X, y)
         ypred = self.predict(X)
         return np.where(ypred == y, 1, 0).sum()/y.shape[0]
 

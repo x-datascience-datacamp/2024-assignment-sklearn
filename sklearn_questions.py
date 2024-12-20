@@ -61,12 +61,12 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
     def __init__(self, n_neighbors=1):
         """
-        Initialize the KNearestNeighbors classifier with the number
-        of neighbors.
+        Initialize the KNearestNeighbors.
 
         n_neighbors : int, optional, default=1
             The number of neighbors to use for classification.
         """
+
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):

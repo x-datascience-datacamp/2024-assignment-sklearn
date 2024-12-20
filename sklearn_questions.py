@@ -55,13 +55,13 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
-from sklearn.utils.validation import check_array
+from sklearn.utils.validation import check_is_fitted
+from sklearn.utils.validation import validate_data
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +82,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = validate_data(self, X, y, ensure_2d=True)
+        check_classification_targets(y)
+        self.X_ = X
+        self.y_ = y
+        self.classes_ = np.unique(y)
+        self.n_features_in_ = X.shape[1]
         return self
 
     def predict(self, X):
@@ -97,8 +103,18 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
-        return y_pred
+        check_is_fitted(self)
+        X = validate_data(self, X, ensure_2d=True, reset=False)
+        y_pred = []
+        for x in X:
+            X_k = x.reshape(1, -1)
+            dist_matrix = pairwise_distances(X_k, self.X_).flatten()
+            nearest_indices = np.argsort(dist_matrix)[:self.n_neighbors]
+            values, counts = np.unique(
+                self.y_[nearest_indices], return_counts=True
+            )
+            y_pred.append(values[np.argmax(counts)])
+        return np.array(y_pred)
 
     def score(self, X, y):
         """Calculate the score of the prediction.
@@ -115,7 +131,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        y_pred = self.predict(X)
+        return np.mean(y_pred == y)
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +172,20 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if not isinstance(X, pd.DataFrame):
+            if isinstance(X, pd.Series):
+                X = X.to_frame(name='value')
+            else:
+                raise ValueError("X must be a pandas DataFrame or Series.")
+
+        if self.time_col == "index":
+            X.index = pd.to_datetime(X.index)
+            unique_months = X.index.to_period("M").unique()
+        else:
+            X[self.time_col] = pd.to_datetime(X[self.time_col])
+            unique_months = X[self.time_col]\
+                .dt.to_period("M").unique()
+        return len(unique_months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -177,12 +207,38 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        if not isinstance(X, pd.DataFrame):
+            if isinstance(X, pd.Series):
+                X = X.to_frame(name='value')
+            else:
+                raise ValueError("X must be a pandas DataFrame or Series.")
 
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
-        for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
+        if self.time_col == "index":
+            try:
+                X.index = pd.to_datetime(X.index)
+            except Exception as e:
+                raise ValueError("Index must be in datetime format.") from e
+            time_series = pd.Series(X.index)
+        else:
+            try:
+                X[self.time_col] = pd.to_datetime(X[self.time_col])
+            except Exception as e:
+                raise ValueError(f"Column '{self.time_col}\
+                                 ' must be in datetime format.") from e
+            time_series = X[self.time_col]
+
+        months_periods = time_series.dt.to_period("M")
+        unique_months = sorted(months_periods.unique())
+
+        if len(unique_months) < 2:
+            raise ValueError(
+                "Not enough unique months to create splits. "
+                "Ensure datetime data spans multiple months."
             )
+
+        for i in range(len(unique_months) - 1):
+            train_month = unique_months[i]
+            test_month = unique_months[i + 1]
+            idx_train = np.where(months_periods == train_month)[0]
+            idx_test = np.where(months_periods == test_month)[0]
+            yield idx_train, idx_test

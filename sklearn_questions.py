@@ -81,7 +81,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-
         self.X_train_, self.y_train_ = validate_data(self, X, y)
         self.classes_ = unique_labels(y)
         self.is_fitted_ = True
@@ -105,12 +104,12 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         check_is_fitted(self, ['X_train_', 'y_train_'])
         X = validate_data(self, X, reset=False)
 
-        distances = pairwise_distances(self.X_train_, X, metric="euclidean")
+        dist = pairwise_distances(self.X_train_, X, metric="euclidean")
         y_pred = np.empty(X.shape[0], dtype=self.y_train_.dtype)
         for i in range(len(X)):
-            nearest_indices = np.argsort(distances[:, i])[:self.n_neighbors]
-            nearest_labels = self.y_train_[nearest_indices]
-            most_common_label = Counter(nearest_labels).most_common(1)[0][0]
+            idx_nearest = np.argsort(dist[:, i])[:self.n_neighbors]
+            labels = self.y_train_[idx_nearest]
+            most_common_label = Counter(labels).most_common(1)[0][0]
             y_pred[i] = most_common_label
         return y_pred
 
@@ -201,7 +200,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         if self.time_col != 'index':
             X = X.set_index(self.time_col)
 

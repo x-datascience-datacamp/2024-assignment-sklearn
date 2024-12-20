@@ -41,7 +41,7 @@ call at the root of the repo.
 
 Hints
 -----
-- You can use the function:
+- You can use the:
 
 from sklearn.metrics.pairwise import pairwise_distances
 

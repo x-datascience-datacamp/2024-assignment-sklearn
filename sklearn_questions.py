@@ -82,6 +82,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+        X, y = check_X_y(X, y)
+        self.X_train_ = X
+        self.y_train_ = y
+        check_classification_targets(y)
+        self.n_features_in_ = X.shape[1]
+        self.classes_ = np.unique(y)
         return self
 
     def predict(self, X):
@@ -97,7 +103,16 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+        check_is_fitted(self)
+        X = check_array(X)
+        y_pred = np.zeros(X.shape[0], dtype=self.y_train_.dtype)
+        dist = pairwise_distances(X, self.X_train_, metric='minkowski')
+        nearest_ind = np.argsort(dist, axis=1)[:, :self.n_neighbors]
+        nearest_lab = self.y_train_[nearest_ind]
+        for i, label in enumerate(nearest_lab):
+            unique_labels, counts = np.unique(label, return_counts=True)
+            y_pred[i] = unique_labels[np.argmax(counts)]
+
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +130,12 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        check_is_fitted(self)
+        X, y = check_X_y(X, y)
+        y_pred = self.predict(X)
+        accuracy = np.mean(y_pred == y)
+
+        return accuracy
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,9 +175,24 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+        if not isinstance(X, type(pd.DataFrame())):
+            time_data = pd.DataFrame({'date': X.index, 'val': X.values})
+            time_data['date'] = pd.to_datetime(time_data['date'])
+        elif self.time_col == 'index' and 'date' not in X.columns[0]:
+            time_data = X.reset_index().copy()
+            time_data = time_data.rename(
+                columns={'index': 'date'}, inplace=False)
+        else:
+            time_data = X.copy()
+            if 'date' not in time_data.columns[0]:
+                time_data = time_data.rename({self.time_col: 'date'})
+        unique_months = pd.to_datetime(
+            time_data['date']).dt.strftime('%b-%Y').unique()
+        n_splits = len(unique_months) - 1
 
-    def split(self, X, y, groups=None):
+        return n_splits
+
+    def split(self, X, y=None, groups=None):
         """Generate indices to split data into training and test set.
 
         Parameters
@@ -177,12 +212,36 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
+        if self.time_col != 'index':
+            if not isinstance(X[self.time_col].iloc[0],
+                              type(pd.Timestamp('now'))):
+                raise ValueError('Index must be of type datetime')
+        else:
+            if not isinstance(X.index[0], type(pd.Timestamp('now'))):
+                raise ValueError('Index must be of type datetime')
+        if not isinstance(X, type(pd.DataFrame())):
+            time_data = pd.DataFrame({'date': X.index, 'val': X.values})
+            time_data['date'] = pd.to_datetime(time_data['date'])
+        elif self.time_col == 'index':
+            time_data = X.reset_index().copy()
+            time_data = time_data.rename(columns={'index': 'date'})
+        else:
+            time_data = X.copy()
+            if 'date' not in time_data.columns[0]:
+                time_data = time_data.rename(columns={self.time_col: 'date'},
+                                             inplace=False)
+        n_splits = self.get_n_splits(time_data, y, groups)
+        time_data['period'] = pd.to_datetime(
+            time_data['date']).dt.strftime('%b-%Y')
 
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups)
+        periods = np.unique(np.sort(pd.to_datetime(time_data['period'],
+                                                   format='%b-%Y')))
+        time_data['period'] = pd.to_datetime(
+            time_data['period'], format='%b-%Y')
+        time_data = time_data.reset_index()
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
-            yield (
-                idx_train, idx_test
-            )
+            idx_train = list(
+                time_data[time_data['period'] == periods[i]].index)
+            idx_test = list(
+                time_data[time_data['period'] == periods[i + 1]].index)
+            yield (idx_train, idx_test)

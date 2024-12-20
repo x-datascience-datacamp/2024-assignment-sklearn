@@ -51,12 +51,12 @@ from typing import Counter
 import numpy as np
 import pandas as pd
 
-from sklearn.base import BaseEstimator, check_array
+from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted, validate_data
+from sklearn.utils.validation import check_is_fitted, validate_data
 from sklearn.utils.multiclass import check_classification_targets, unique_labels
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -101,7 +101,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-
         check_is_fitted(self, ['X_train_', 'y_train_'])
 
         X = validate_data(self, X, reset=False)
@@ -109,7 +108,8 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         nearest_indices = np.argsort(distances, axis=0)[:self.n_neighbors]
         nearest_labels = self.y_train_[nearest_indices]
         y_pred = np.apply_along_axis(
-            lambda labels: Counter(labels).most_common(1)[0][0], axis=0, arr=nearest_labels
+            lambda labels: Counter(labels).most_common(1)[0][0],
+            axis=0, arr=nearest_labels
         )
 
         return y_pred
@@ -209,7 +209,6 @@ class MonthlySplit(BaseCrossValidator):
         idx_test : ndarray
             The testing set indices for that split.
         """
-
         n_splits = self.get_n_splits(X, y, groups)
 
         if n_splits < 1:

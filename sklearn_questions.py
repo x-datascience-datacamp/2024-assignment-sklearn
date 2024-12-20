@@ -61,6 +61,7 @@ from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.metrics import accuracy_score
+from sklearn.utils.validation import validate_data
 
 
 class KNearestNeighbors(ClassifierMixin, BaseEstimator):
@@ -84,7 +85,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X, y = self._validate_data(X, y)
+        X, y = validate_data(self,X, y)
 
         check_classification_targets(y)
         self.classes_ = unique_labels(y)
@@ -113,7 +114,8 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             Predicted class labels for each test data sample.
         """
         check_is_fitted(self)
-        X = self._validate_data(X)
+        X = validate_data(self, X, reset=False)
+        self._check_n_features(X, reset=False)
 
         y_pred = []
 

@@ -115,26 +115,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
             y_pred.append(most_common)
         return np.array(y_pred)
 
-    def score(self, X, y):
-        """Calculate the score of the prediction.
-
-        Parameters
-        ----------
-        X : ndarray, shape (n_samples, n_features)
-            Data to score on.
-        y : ndarray, shape (n_samples,)
-            target values.
-
-        Returns
-        ----------
-        score : float
-            Accuracy of the model computed for the (X, y) pairs.
-        """
-        check_is_fitted(self)
-        check_classification_targets(y)
-        y_pred = self.predict(X)
-        return np.sum(y_pred == y) / len(y)
-
 
 class MonthlySplit(BaseCrossValidator):
     """CrossValidator based on monthly split.

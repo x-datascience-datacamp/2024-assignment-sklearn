@@ -55,7 +55,7 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import check_X_y, check_is_fitted, validate_data
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
@@ -82,10 +82,11 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
-        X_checked = check_array(X)
-        check_classification_targets(y)
-        # y_checked = check_array(y, ensure_2d=False)
-        X_checked, y_checked = check_X_y(X_checked, y)
+        # X_checked = check_array(X)
+        # check_classification_targets(y)
+        # # y_checked = check_array(y, ensure_2d=False)
+        # X_checked, y_checked = check_X_y(X_checked, y)
+        X_checked, y_checked = validate_data(self, X, y)
         self.X_ = X_checked
         self.y_ = y_checked
         self.classes_ = np.unique(y_checked)
@@ -105,10 +106,11 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        check_is_fitted(self)
-        X = check_array(X)
-        if X.shape[1] != self.n_features_in_:
-            raise ValueError()
+        X = validate_data(self, X, reset=False)
+        # check_is_fitted(self)
+        # X = check_array(X)
+        # if X.shape[1] != self.n_features_in_:
+        #     raise ValueError()
         y_pred = []
         for row in X:
             row_and_X = np.append([row], self.X_, axis=0)

@@ -52,7 +52,7 @@ import pandas as pd
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
-from collections import Counter
+from collections import Counter as C
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_X_y, check_is_fitted
@@ -61,7 +61,7 @@ from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.utils.multiclass import unique_labels
 from pandas.api.types import is_datetime64_any_dtype
-
+from sklearn.utils.validation import validate_data
 
 class KNearestNeighbors(BaseEstimator, ClassifierMixin):
 
@@ -72,13 +72,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
     def __sklearn_is_fitted__(self):
 
         try:
-            if self.exemples_ is not None: 
+            if self.exemples_ is not None:
                 return True
-        except:
+        except AttributeError:
             return False
 
     def fit(self, X, y):
-        
+
         """Fitting function.
 
          Parameters
@@ -94,9 +94,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
             The current instance of the classifier
         """
 
-        X=check_array(X)
+        # X = check_array(X)
         check_classification_targets(y)
-        X, y = check_X_y(X, y)
+        # X, y = check_X_y(X, y)
+        X, y = validate_data(self,X,y)
         self.exemples_ = X
         self.labels_ = y
         self.classes_ = unique_labels(self.labels_)
@@ -119,10 +120,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         check_is_fitted(self)
         X = check_array(X)
-        distance_matrice = pairwise_distances(self.exemples_, X)
-        indices = np.argpartition(distance_matrice, self.n_neighbors, axis=0)[:self.n_neighbors, :]    
-        y_pred = np.array([Counter(self.labels_[indices[:, i]]).most_common(1)[0][0] for i in range(X.shape[0])])
-        return y_pred
+        DM = pairwise_distances(self.exemples_, X)
+        n = self.n_neighbors
+        idx = np.argpartition(DM, n, axis=0)[:n, :]
+        lab = self.labels_
+        XS0 = X.shape[0]
+        y = [C(lab[idx[:, i]]).most_common(1)[0][0] for i in range(XS0)]
+        return np.array(y)
 
     def score(self, X, y):
 
@@ -166,7 +170,7 @@ class MonthlySplit(BaseCrossValidator):
         self.time_col = time_col
 
     def get_n_splits(self, X, y=None, groups=None):
-        
+
         """Return the number of splitting iterations in the cross-validator.
 
         Parameters
@@ -193,9 +197,9 @@ class MonthlySplit(BaseCrossValidator):
         if self.time_col == "index":
             if not is_datetime64_any_dtype(X.index):
                 raise ValueError("invalid datetime format")
-        else : 
+        else:
             if not is_datetime64_any_dtype(X[self.time_col]):
-                raise ValueError("invalid datetime format")     
+                raise ValueError("invalid datetime format")
 
     def split(self, X, y, groups=None):
 
@@ -218,18 +222,19 @@ class MonthlySplit(BaseCrossValidator):
             The testing set indices for that split.
         """
         self.is_datetime(X)
-        if type(X) is pd.DataFrame: 
-            if (self.time_col == 'index') and ("index" not  in X.columns):     
-                X = X.reset_index() 
-        else : 
-            X = X.reset_index()       
+        if type(X) is pd.DataFrame:
+            if (self.time_col == 'index') and ("index" not in X.columns):
+                X = X.reset_index()
+        else:
+            X = X.reset_index()
         periods = np.sort(X[self.time_col].dt.strftime("%Y-%m").unique())
-        n_samples = X.shape[0]
-        n_splits = self.get_n_splits(X, y, groups) 
-        for i in range(n_splits): 
-            m1, m2 = periods[i], periods[i+1]  
+        # n_samples = X.shape[0]
+        n_splits = self.get_n_splits(X, y, groups)
+        for i in range(n_splits):
+            m1, m2 = periods[i], periods[i+1]
             train = X[X[self.time_col].dt.strftime("%Y-%m") == m1].index
             test = X[X[self.time_col].dt.strftime("%Y-%m") == m2].index
-            yield X.index.get_indexer(train).tolist(), X.index.get_indexer(test).tolist()
 
-    
+            idx1 = X.index.get_indexer(train).tolist()
+            idx2 = X.index.get_indexer(test).tolist()
+            yield idx1, idx2

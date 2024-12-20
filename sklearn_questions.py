@@ -157,27 +157,19 @@ class MonthlySplit:
     """
 
     def __init__(self, time_col="index"):
-        """
-        Initialize the MonthlySplit cross-validator.
-        Parameters
-        time_col : str, optional, default='index'
-            The column name containing the datetime
-            values for splitting. If
-            'index' is provided, the DataFrame index is used.
+        """CrossValidator based on monthly split.
+
+        Split data based on the given `time_col` (or default to index)
+        Each split
+        corresponds to one month of data for the training and the next month of
+        data for the test.
         """
         self.time_col = time_col
 
     def __repr__(self):
-        """
-        Return a string representation of the MonthlySplit object.
-        This method returns a string that describes the
-        current configuration
-        of the MonthlySplit cross-validator
-        including the time column used for
-        splitting.
-        Returns
-        str
-            A string representation of the MonthlySplit object.
+        """Return string representation of the MonthlySplit object.
+
+        This is used to provide a human-readable string for the object.
         """
         return f"MonthlySplit(time_col='{self.time_col}')"
 

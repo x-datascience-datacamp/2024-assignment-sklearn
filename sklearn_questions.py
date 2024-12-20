@@ -63,7 +63,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         """
         Initialize the KNearestNeighbors classifier with the number
         of neighbors.
-
         Parameters
         ----------
         n_neighbors : int, optional, default=1
@@ -84,7 +83,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         Returns
         ----------
         self : instance of KNearestNeighbors
-            The current instance of the classifier
+            The current instance of the classifier.
         """
         X, y = self._validate_data(
             X, y, accept_sparse=True, multi_output=False
@@ -141,7 +140,7 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
 
 
 class MonthlySplit:
-    """CrossValidator based on monthly split.
+    """Crossvalidator based on monthly split.
 
     Split data based on the given `time_col` (or default to index). Each split
     corresponds to one month of data for the training and the next month of

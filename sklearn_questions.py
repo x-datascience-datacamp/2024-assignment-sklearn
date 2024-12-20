@@ -66,7 +66,6 @@ class KNearestNeighbors(ClassifierMixin, BaseEstimator):
         n_neighbors : int, optional, default=1
             The number of neighbors to use for classification.
         """
-
         self.n_neighbors = n_neighbors
 
     def fit(self, X, y):

@@ -55,13 +55,13 @@ from sklearn.base import ClassifierMixin
 
 from sklearn.model_selection import BaseCrossValidator
 
-from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import check_X_y, check_is_fitted, validate_data
 from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-class KNearestNeighbors(BaseEstimator, ClassifierMixin):
+class KNearestNeighbors(ClassifierMixin, BaseEstimator):
     """KNearestNeighbors classifier."""
 
     def __init__(self, n_neighbors=1):  # noqa: D107
@@ -82,6 +82,20 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : instance of KNearestNeighbors
             The current instance of the classifier
         """
+
+        X, y = check_X_y(X, y)
+        X, y = validate_data(self, X, y, reset=True)
+        self.n_features_in_ = X.shape[1]
+
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(f"n_features not match: {self.n_features_in_}")
+        
+        check_classification_targets(y)
+        
+        self.classes_, y_encoded = np.unique(y, return_inverse=True)
+        self.y_train_encoded_ = y_encoded
+        self.X_train_ = X
+
         return self
 
     def predict(self, X):
@@ -97,7 +111,26 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         y : ndarray, shape (n_test_samples,)
             Predicted class labels for each test data sample.
         """
-        y_pred = np.zeros(X.shape[0])
+
+        check_is_fitted(self)
+        
+        X = validate_data(self, X, reset=False)
+
+        distances = pairwise_distances(X, self.X_train_)
+
+        if self.n_neighbors == 1:
+            nearest_indices = distances.argmin(axis=1)
+            y_pred_encoded = self.y_train_encoded_[nearest_indices]
+        else:
+            neighbors_idx = np.argpartition(distances, self.n_neighbors, axis=1)[:, :self.n_neighbors]
+            y_pred_encoded = np.array([
+                np.bincount(self.y_train_encoded_[indices]).argmax()
+                for indices in neighbors_idx
+            ])
+
+
+        y_pred = self.classes_[y_pred_encoded]
+
         return y_pred
 
     def score(self, X, y):
@@ -115,7 +148,11 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         score : float
             Accuracy of the model computed for the (X, y) pairs.
         """
-        return 0.
+        
+        y_pred = self.predict(X)
+        score = np.mean(y_pred == y)
+
+        return score
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -155,7 +192,18 @@ class MonthlySplit(BaseCrossValidator):
         n_splits : int
             The number of splits.
         """
-        return 0
+
+        if self.time_col == 'index':
+            time_column = pd.Series(X.index)
+        else:
+            time_column = X[self.time_col]
+
+        if not np.issubdtype(time_column.dtype, np.datetime64):
+            raise ValueError("The time_col must be of datetime type.")
+
+        unique_months = time_column.dt.to_period('M').unique()
+
+        return len(unique_months) - 1
 
     def split(self, X, y, groups=None):
         """Generate indices to split data into training and test set.
@@ -178,11 +226,28 @@ class MonthlySplit(BaseCrossValidator):
             The testing set indices for that split.
         """
 
-        n_samples = X.shape[0]
+
+        if self.time_col == 'index':
+            time_column = pd.Series(X.index)
+        else:
+            time_column = X[self.time_col]
+
+        if not np.issubdtype(time_column.dtype, np.datetime64):
+            raise ValueError("The time_col must be of datetime type.")
+
+        monthly_periods = time_column.dt.to_period('M')
+        unique_months = monthly_periods.unique()
+        sorted_months = sorted(unique_months)
+
         n_splits = self.get_n_splits(X, y, groups)
+
         for i in range(n_splits):
-            idx_train = range(n_samples)
-            idx_test = range(n_samples)
+
+            train_month = sorted_months[i]
+            test_month = sorted_months[i + 1]
+
+            idx_train = np.where(monthly_periods == train_month)[0]
+            idx_test = np.where(monthly_periods == test_month)[0]
             yield (
                 idx_train, idx_test
             )

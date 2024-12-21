@@ -53,7 +53,7 @@ import pandas as pd
 
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
-from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
+from sklearn.utils.validation import validate_data, check_is_fitted
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -99,13 +99,18 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         self : object
             Returns the instance itself.
         """
-        # Validate input
-        X, y = check_X_y(X, y)
+        # Validate input and set n_features_in_
+        X, y = validate_data(
+            self, X, y,
+            ensure_2d=True,
+            accept_sparse=False,
+            dtype=None,
+            reset=True
+        )
         check_classification_targets(y)
 
         self.X_ = X
         self.y_ = y
-        self.n_features_in_ = X.shape[1]
         return self
 
     def predict(self, X):
@@ -125,15 +130,14 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # Check if the classifier has been fitted
         check_is_fitted(self, ["X_", "y_"])
 
-        # Validate input
-        X = check_array(X)
-
-        # Ensure the number of features matches
-        if X.shape[1] != self.n_features_in_:
-            raise ValueError(
-                f"Number of features in X ({X.shape[1]}) does not match "
-                f"the number of features during fit ({self.n_features_in_})."
-            )
+        # Validate input, reset=False to keep n_features_in_
+        X = validate_data(
+            self, X,
+            ensure_2d=True,
+            accept_sparse=False,
+            dtype=None,
+            reset=False
+        )
 
         # Compute distances
         distances = pairwise_distances(X, self.X_, metric='euclidean')
@@ -221,7 +225,7 @@ class MonthlySplit(BaseCrossValidator):
             Number of month-based splits.
         """
         time_data = self._get_time_data(X)
-        unique_months = time_data.dt.to_period("M").drop_duplicates()
+        unique_months = time_data.dt.to_period("M").drop_duplicates().sort_values()
         return max(len(unique_months) - 1, 0)
 
     def split(self, X, y=None, groups=None):
@@ -248,7 +252,7 @@ class MonthlySplit(BaseCrossValidator):
             Indices for testing data.
         """
         time_data = self._get_time_data(X)
-        unique_months = time_data.dt.to_period("M").drop_duplicates()
+        unique_months = time_data.dt.to_period("M").drop_duplicates().sort_values()
 
         for i in range(len(unique_months) - 1):
             train_month = unique_months.iloc[i]

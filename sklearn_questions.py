@@ -101,10 +101,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         # Validate input and set n_features_in_
         X, y = validate_data(
-            self, X, y,
-            ensure_2d=True,
+            X, y,
             accept_sparse=False,
             dtype=None,
+            ensure_2d=True,
             reset=True
         )
         check_classification_targets(y)
@@ -132,10 +132,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
 
         # Validate input, reset=False to keep n_features_in_
         X = validate_data(
-            self, X,
-            ensure_2d=True,
+            X,
             accept_sparse=False,
             dtype=None,
+            ensure_2d=True,
             reset=False
         )
 

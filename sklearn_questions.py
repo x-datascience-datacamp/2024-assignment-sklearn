@@ -214,8 +214,16 @@ class MonthlySplit(BaseCrossValidator):
         
         sorted_indices = np.argsort(times)
         times = times[sorted_indices]
-        X = X.iloc[sorted_indices] if isinstance(X, pd.DataFrame) else X[sorted_indices]
-        y = y.iloc[sorted_indices] if isinstance(y, pd.DataFrame) else y[sorted_indices]
+        X = X.iloc[sorted_indices] if isinstance(
+            X, pd.DataFrame
+            ) else X[
+            sorted_indices
+            ]
+        y = y.iloc[sorted_indices] if isinstance(
+            y, pd.DataFrame
+            ) else y[
+                sorted_indices
+                ]
 
         periods = pd.Series(times).dt.to_period("M")
         unique_months = periods.unique()
@@ -227,3 +235,4 @@ class MonthlySplit(BaseCrossValidator):
             idx_test = np.array(periods[periods == test_month].index)
 
             yield idx_train, idx_test
+            

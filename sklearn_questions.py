@@ -128,6 +128,13 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # Validate input
         X = check_array(X)
 
+        # Ensure the number of features matches
+        if X.shape[1] != self.n_features_in_:
+            raise ValueError(
+                f"Number of features in X ({X.shape[1]}) does not match "
+                f"the number of features during fit ({self.n_features_in_})."
+            )
+
         # Compute distances
         distances = pairwise_distances(X, self.X_, metric='euclidean')
 
@@ -138,7 +145,10 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         neighbor_labels = self.y_[neighbors_idx]
 
         # Predict by majority vote
-        y_pred = np.array([np.bincount(row.astype(int)).argmax() for row in neighbor_labels])
+        y_pred = np.array([
+            np.bincount(row.astype(int)).argmax() if len(np.unique(row)) > 0 else 0
+            for row in neighbor_labels
+        ])
 
         return y_pred
 
@@ -241,8 +251,8 @@ class MonthlySplit(BaseCrossValidator):
         unique_months = time_data.dt.to_period("M").drop_duplicates()
 
         for i in range(len(unique_months) - 1):
-            train_month = unique_months[i]
-            test_month = unique_months[i + 1]
+            train_month = unique_months.iloc[i]
+            test_month = unique_months.iloc[i + 1]
 
             train_mask = time_data.dt.to_period("M") == train_month
             test_mask = time_data.dt.to_period("M") == test_month

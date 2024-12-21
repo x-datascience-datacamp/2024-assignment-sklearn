@@ -46,7 +46,9 @@ Hints
 from sklearn.metrics.pairwise import pairwise_distances
 
 to compute distances between 2 sets of samples.
-"""
+"""`
+
+
 import numpy as np
 import pandas as pd
 
@@ -131,9 +133,8 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         # Validate input
         X = check_array(X)
 
-        # Compute distances and predict
-        distances = pairwise_distances(X, self.X_)
-        nearest_indices = np.argmin(distances, axis=1)
+        # Compute nearest neighbors and predict
+        nearest_indices, _ = pairwise_distances_argmin_min(X, self.X_)
         return self.y_[nearest_indices]
 
     def score(self, X, y):
@@ -155,12 +156,6 @@ class KNearestNeighbors(BaseEstimator, ClassifierMixin):
         """
         y_pred = self.predict(X)
         return np.mean(y_pred == y)
-Updated MonthlySplit Class
-python
-Copier le code
-from sklearn.model_selection import BaseCrossValidator
-import numpy as np
-import pandas as pd
 
 
 class MonthlySplit(BaseCrossValidator):
@@ -187,9 +182,11 @@ class MonthlySplit(BaseCrossValidator):
         If the `time_col` is not found or not a datetime type.
     """
 
+  
     def __init__(self, time_col='index'):
         self.time_col = time_col
 
+  
     def get_n_splits(self, X, y=None, groups=None):
         """
         Return the number of splitting iterations in the cross-validator.
@@ -213,6 +210,7 @@ class MonthlySplit(BaseCrossValidator):
         time_data = self._get_time_data(X)
         return len(time_data.dt.to_period("M").unique()) - 1
 
+  
     def split(self, X, y=None, groups=None):
         """
         Generate indices to split data into training and test set.
@@ -248,6 +246,7 @@ class MonthlySplit(BaseCrossValidator):
 
             yield train_indices, test_indices
 
+  
     def _get_time_data(self, X):
         """
         Extract the datetime data from the specified column or index.

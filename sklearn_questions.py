@@ -56,7 +56,6 @@ from sklearn.base import ClassifierMixin
 from sklearn.model_selection import BaseCrossValidator
 
 from sklearn.utils.validation import check_X_y, check_is_fitted, validate_data
-from sklearn.utils.validation import check_array
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.metrics.pairwise import pairwise_distances
 
@@ -211,7 +210,6 @@ class MonthlySplit(BaseCrossValidator):
 
         if not pd.api.types.is_datetime64_any_dtype(times):
             raise ValueError("time_col must be a datetime column.")
-        
         sorted_indices = np.argsort(times)
         times = times[sorted_indices]
         X = X.iloc[sorted_indices] if isinstance(
@@ -235,4 +233,4 @@ class MonthlySplit(BaseCrossValidator):
             idx_test = np.array(periods[periods == test_month].index)
 
             yield idx_train, idx_test
-            
+
